@@ -15,7 +15,7 @@ local files and git objects only (no network, no writes outside their output dir
 | `release-verify.sh version V`, `dryversion V`, `tag TAG MAIN_REF`, `go` | strict version, dry-run label, annotated tag on `main` (prints the commit), `.go-version` equals `go.mod` |
 | `release-package.sh VERSION TARGET BINARY OUTDIR` | deterministic `.tar.gz` (GNU tar) or `.zip` (Info-ZIP) plus `.sha256`; needs `SOURCE_DATE_EPOCH`; `TARGET` is `<os>_<arch>`, with `linux_armv6` and `linux_armv7` for 32-bit ARM |
 | `release-inspect.sh GOOS GOARCH BINARY` | ELF, Mach-O or PE header matches the target, without running the binary |
-| `release-smoke.sh VERSION ARCHIVE` | checksum, members, `version`, `--help`, `init`, `validate` on a fixture; `CSCRIBE_RUN` prefixes an emulator |
+| `release-smoke.sh VERSION ARCHIVE` | checksum, members, `version`, `--help`, `init`, `new`, `list`, `links`, `validate` and a twice-run `export` on a fixture collection; `CSCRIBE_RUN` prefixes an emulator; zips are extracted with PowerShell `Expand-Archive` |
 | `release-notes.sh TAG COMMIT GO_VERSION` | release notes on stdout from Conventional Commit subjects since the previous release tag |
 
 `go test ./internal/releaseworkflow` (part of `make check`) tests the scripts and the structure of
@@ -23,3 +23,20 @@ local files and git objects only (no network, no writes outside their output dir
 
 A failed `smoke-emulated` job usually means qemu rejected a CPU model or the Go runtime found a
 feature the model lacks; reproduce with `CSCRIBE_RUN='qemu-arm -cpu arm1176' sh .github/scripts/release-smoke.sh ...`.
+
+## Verifying a download
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS                       # Linux
+grep ' ARCHIVE$' SHA256SUMS | shasum -a 256 --check                 # macOS, one archive
+gh attestation verify ARCHIVE --repo wstein/chartscribe
+```
+
+## The qemu smoke gate
+
+`smoke-emulated` (the Raspberry Pi and other non-native Linux archives under qemu-user) runs only in this workflow, never on commits
+or pull requests, and `publish` lists it in `needs`. To demote it after the first dry run, if the
+emulation proves flaky, replace the `if:` of `publish` by
+`!cancelled() && needs.verify.result == 'success' && needs.build.result == 'success' && needs.smoke.result == 'success' && <the existing condition>`
+so that a failed `smoke-emulated` no longer blocks publication. The owner decides; the structure
+test `TestPublishGatesOnTheSmokeJobs` must then be changed in the same pull request.
