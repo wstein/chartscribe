@@ -364,9 +364,10 @@ func TestMapLinkGoesToTheListNotTheEndOfTheFile(t *testing.T) {
 func TestMapLinkNotFixedWithoutOneListOrWithUnknownMaps(t *testing.T) {
 	third := "---\nid: 20261021120002\ntags: [\"type/idea\", \"status/open\", \"category/state\"]\n---\nBody text.\n\n" + source
 	for name, files := range map[string]map[string]string{
-		"no list":    {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n", "notes/Third note.md": third},
-		"two lists":  {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\n- [[Second note]]\n\ntext\n\n- [[First note]]\n", "notes/Third note.md": third},
-		"broken map": {"notes/Map - State 2.md": "no frontmatter\n", "notes/Third note.md": third},
+		"no list":     {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n", "notes/Third note.md": third},
+		"two lists":   {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\n- [[Second note]]\n\ntext\n\n- [[First note]]\n", "notes/Third note.md": third},
+		"fenced link": {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\n```\n- [[Second note]]\n```\n", "notes/Third note.md": third},
+		"broken map":  {"notes/Map - State 2.md": "no frontmatter\n", "notes/Third note.md": third},
 	} {
 		root := collectionWith(t, files)
 		if p := build(t, root); len(p.Edits) != 0 {
