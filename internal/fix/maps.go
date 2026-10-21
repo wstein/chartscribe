@@ -72,7 +72,8 @@ func mapEdits(findings []validate.Finding, texts, orig map[string]string) []line
 			continue
 		}
 		file := "notes/" + maps[0]
-		at, bullet, ok := listEnd(strings.Split(orig[maps[0]], "\n"))
+		fenced, _ := note.CodeLines(orig[maps[0]])
+		at, bullet, ok := listEnd(strings.Split(orig[maps[0]], "\n"), fenced)
 		if !ok {
 			continue
 		}
@@ -86,12 +87,15 @@ var bulletLink = regexp.MustCompile(`^([-*]) +\[\[`)
 
 // listEnd finds where a link goes in a map: the line after its list of links. The list is the one run of
 // consecutive lines `- [[...` (or `* [[...`) without indent; no run, or more than one, is not certain.
-func listEnd(lines []string) (at int, bullet string, ok bool) {
+func listEnd(lines []string, fenced []bool) (at int, bullet string, ok bool) {
 	last := -1
 	for i, l := range lines {
 		m := bulletLink.FindStringSubmatch(l)
 		if m == nil {
 			continue
+		}
+		if fenced[i] {
+			return 0, "", false // a link inside a code block: the list is not certain
 		}
 		if last >= 0 && i != last+1 {
 			return 0, "", false
