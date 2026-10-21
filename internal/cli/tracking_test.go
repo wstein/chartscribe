@@ -247,3 +247,134 @@ func TestTrackingLeavesCRLFNotesAlone(t *testing.T) {
 		t.Fatalf("code %d, stderr %q, changed %v", code, errOut, string(data) != crlf)
 	}
 }
+
+func TestTrackingNeverWritesThroughSymlinks(t *testing.T) {
+	root, _ := trackingCollection(t)
+	outside := t.TempDir()
+	victimText := strings.Replace(noteHead, "%s", "20261021120000", 1) + "Victim\n"
+	victim := filepath.Join(outside, "victim.md")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(root, "notes", "Link.md")); err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: trackingIssues})
+	code, _, errOut := run("--root", root, "tracking", "--write")
+	data, _ := os.ReadFile(victim)
+	if code != 0 || string(data) != victimText || !strings.Contains(errOut, "Link.md") || !strings.Contains(errOut, "symbolic link") {
+		t.Fatalf("code %d, stderr %q, victim changed %v", code, errOut, string(data) != victimText)
+	}
+	if fi, _ := os.Lstat(filepath.Join(root, "notes", "Link.md")); fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the link was replaced")
+	}
+	if !strings.Contains(readAll(t, root)["First note.md"], "## Tracking") {
+		t.Fatal("regular notes are still written")
+	}
+}
+
+func TestTrackingRefusesNotesDirectoryOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	text := strings.Replace(noteHead, "%s", "20261021120000", 1) + "Body\n"
+	if err := os.WriteFile(filepath.Join(outside, "First note.md"), []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "notes")); err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: trackingIssues})
+	code, _, errOut := run("--root", root, "tracking", "--write")
+	data, _ := os.ReadFile(filepath.Join(outside, "First note.md"))
+	if code != 0 || string(data) != text || !strings.Contains(errOut, "outside the collection") {
+		t.Fatalf("code %d, stderr %q, changed %v", code, errOut, string(data) != text)
+	}
+}
+
+func TestTrackingWriteIsAllOrNothing(t *testing.T) {
+	root, before := trackingCollection(t)
+	if err := os.Chmod(filepath.Join(root, "notes", "Second note.md"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: trackingIssues})
+	code, out, errOut := run("--root", root, "tracking", "--write")
+	if code != 3 || out != "" || !strings.Contains(errOut, "Second note.md") || !strings.Contains(errOut, "not written") {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	for name, text := range readAll(t, root) {
+		if text != before[name] {
+			t.Errorf("%s changed although the run failed before writing", name)
+		}
+	}
+	if entries, _ := os.ReadDir(filepath.Join(root, "notes")); len(entries) != len(before) {
+		t.Errorf("temporary files left: %d entries", len(entries))
+	}
+}
+
+func TestTrackingRefusesNotesChangedSincePlanning(t *testing.T) {
+	root, before := trackingCollection(t)
+	path := filepath.Join(root, "notes", "Second note.md")
+	useRunner(t, &stubRunner{out: trackingIssues})
+	beforeWrite = func() { // a concurrent editor, after planning
+		_ = os.WriteFile(path, []byte(before["Second note.md"]+"edited\n"), 0o644)
+	}
+	t.Cleanup(func() { beforeWrite = func() {} })
+	code, _, errOut := run("--root", root, "tracking", "--write")
+	if code != 3 || !strings.Contains(errOut, "changed since") {
+		t.Fatalf("code %d, stderr %q", code, errOut)
+	}
+	if got := readAll(t, root); got["First note.md"] != before["First note.md"] {
+		t.Fatal("First note written although a check failed")
+	}
+}
+
+func TestTrackingReportsStaleSecondSection(t *testing.T) {
+	root, _ := trackingCollection(t)
+	path := filepath.Join(root, "notes", "Third note.md")
+	text := strings.Replace(noteHead, "%s", "20261021120200", 1) + "Body\n\n## Tracking\n\n- #1 a (open) u\n\n## Tracking\n\n- #2 b (open) u\n"
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: `[{"number":5,"title":"Chartroom: 20261021120200 x","state":"OPEN","url":"u","body":""}]`})
+	code, _, errOut := run("--root", root, "tracking", "--write")
+	data, _ := os.ReadFile(path)
+	if code != 0 || !strings.Contains(errOut, "Third note.md") || !strings.Contains(errOut, "second ## Tracking") ||
+		!strings.Contains(string(data), "- #5 Chartroom") || !strings.Contains(string(data), "- #2 b (open) u") {
+		t.Fatalf("code %d, stderr %q, text %q", code, errOut, data)
+	}
+}
+
+func TestTrackingKeepsACollectionValid(t *testing.T) {
+	root := t.TempDir()
+	src := fixture("pass", "alias-link")
+	err := filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || info.Name() == "EXPECT" {
+			return err
+		}
+		rel, _ := filepath.Rel(src, p)
+		data, _ := os.ReadFile(p)
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(root, rel), data, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: `[
+ {"number": 1, "title": "Chartroom: 20261021120000 First note", "state": "OPEN", "url": "https://x/1", "body": ""},
+ {"number": 2, "title": "Fix [[Ghost]]\u001b[31m\u0000", "state": "CLOSED", "url": "https://x/2", "body": "Chartroom: 20261021120001 Second note"}]`})
+	if code, out, errOut := run("--root", root, "tracking", "--write"); code != 0 || !strings.Contains(out, "2 changed") {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	if code, out, errOut := run("--root", root, "validate"); code != 0 {
+		t.Fatalf("validate: code %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	data, _ := os.ReadFile(filepath.Join(root, "notes", "Second note.md"))
+	if strings.ContainsAny(string(data), "\x1b\x00") {
+		t.Fatal("control characters written")
+	}
+	if code, out, _ := run("--root", root, "tracking", "--write"); code != 0 || !strings.Contains(out, "0 changed") {
+		t.Fatalf("rerun: code %d, stdout %q", code, out)
+	}
+}
