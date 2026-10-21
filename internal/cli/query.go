@@ -76,25 +76,31 @@ type backlinksDocument struct {
 // loadIndex finds the collection and reads it. Notes whose frontmatter does not
 // parse are skipped with a warning on stderr; validate reports them.
 func loadIndex(cmd *cobra.Command, opts *globalOptions) (*index.Index, error) {
+	_, x, err := loadCollection(cmd, opts)
+	return x, err
+}
+
+// loadCollection is loadIndex that also returns the collection root.
+func loadCollection(cmd *cobra.Command, opts *globalOptions) (string, *index.Index, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, failure(cmd, opts, exitEnv, "io", err)
+		return "", nil, failure(cmd, opts, exitEnv, "io", err)
 	}
 	root, err := collection.FindRoot(opts.root, cwd)
 	if errors.Is(err, collection.ErrNoCollection) {
-		return nil, failure(cmd, opts, exitEnv, "no-collection", err)
+		return "", nil, failure(cmd, opts, exitEnv, "no-collection", err)
 	}
 	if err != nil {
-		return nil, failure(cmd, opts, exitEnv, "io", err)
+		return "", nil, failure(cmd, opts, exitEnv, "io", err)
 	}
 	x, err := index.Load(root)
 	if err != nil {
-		return nil, failure(cmd, opts, exitEnv, "io", err)
+		return "", nil, failure(cmd, opts, exitEnv, "io", err)
 	}
 	for _, name := range x.Skipped {
 		fmt.Fprintf(cmd.ErrOrStderr(), "skipped %s: frontmatter does not parse (run validate)\n", name)
 	}
-	return x, nil
+	return root, x, nil
 }
 
 // finish maps the error of a print to a runtime failure.
