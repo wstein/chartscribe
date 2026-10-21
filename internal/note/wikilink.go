@@ -46,11 +46,20 @@ func LinkName(target string) string {
 // line `## Tracking` (after the Source line when the body has one) and ends
 // before the next `## ` heading or at the end of the body.
 func StripTracking(body string) string {
+	start, end, ok := trackingSpan(body)
+	if !ok {
+		return body
+	}
+	return body[:start] + body[end:]
+}
+
+// trackingSpan returns the byte range of the tracking section of body.
+func trackingSpan(body string) (start, end int, ok bool) {
 	from := 0
 	if loc := sourceLine.FindStringIndex(body); loc != nil {
 		from = loc[1]
 	}
-	start := -1
+	start = -1
 	for pos := from; pos < len(body); {
 		next := strings.IndexByte(body[pos:], '\n')
 		lineEnd := len(body)
@@ -68,9 +77,9 @@ func StripTracking(body string) string {
 		pos = lineEnd + 1
 	}
 	if start < 0 {
-		return body
+		return 0, 0, false
 	}
-	end := len(body)
+	end = len(body)
 	for pos := start + len("## Tracking"); pos < len(body); {
 		nl := strings.IndexByte(body[pos:], '\n')
 		if nl < 0 {
@@ -82,5 +91,5 @@ func StripTracking(body string) string {
 			break
 		}
 	}
-	return body[:start] + body[end:]
+	return start, end, true
 }
