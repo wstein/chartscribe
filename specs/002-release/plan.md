@@ -9,7 +9,7 @@ run is the owner's dry run.
   approval for that tag only. A manual `workflow_dispatch` is a dry run and never publishes.
   There is no standing approval; every release needs its own tag push by the owner.
 - Jobs: `verify` -> `build` (all targets) -> `smoke` (tier 1 native) and `smoke-emulated`
-  (Raspberry Pi under qemu) -> `publish` (tag push only, environment `release`).
+  (every Linux archive that is not native, under qemu-user) -> `publish` (tag push only, environment `release`).
 - verify: version and tag format, the run was started by the repository owner, annotated tag
   on `main` naming the run's commit, a green `ci` push run for that commit, no release for
   the tag, `.go-version` equals `go.mod`, `make check`, `go mod verify`.
@@ -37,9 +37,14 @@ run is the owner's dry run.
 - `make` gains no build targets. The scripts are tested offline by `go test ./internal/releaseworkflow`
   (part of `make check`): script behaviour on temporary git repos and a real host build, plus
   text rules on `release.yml` (pins, permissions, matrix equals the table below, archive count).
-- The smoke commands are `version`, `--help`, `init` (plan, `--apply`, idempotent rerun),
-  `validate` and `validate --json` on a two-note fixture, and a broken note failing with exit 1.
-  `new`, `list` and `export` do not exist yet; add them to `release-smoke.sh` when they ship.
+- The smoke runs the shipped archive on every smoke platform (native and qemu): checksum and
+  members, `version`, `--help`, `init` (plan, `--apply`, idempotent rerun), `new` (two notes and
+  a map), `list`, `links`, `validate` (0 findings after the script fills tags, links, Source
+  lines and the map), `export` of the map to a file twice (title, a note section, Sources;
+  byte-identical) and a broken note failing with exit 1. The BSD and illumos archives cannot run
+  under qemu-user (not Linux system calls) and get build, reproducibility and header check only.
+  The qemu job exists only in the release workflow (tag or dispatch), never on commits or pull
+  requests.
 
 ## Platform matrix (Go 1.27.2 from `.go-version`; verified with `go tool dist list`)
 
@@ -47,11 +52,14 @@ run is the owner's dry run.
 | --- | --- | --- |
 | 1, native smoke | linux/amd64 (ubuntu-24.04), linux/arm64 (ubuntu-24.04-arm), darwin/arm64 (macos-15), darwin/amd64 (macos-15-intel), windows/amd64 (windows-2025), windows/arm64 (windows-11-arm) | build, reproducible, header check, shipped archive run |
 | 1, emulated smoke | linux/arm GOARM=7 `linux_armv7` (Pi 2 and later, 32-bit OS), linux/arm GOARM=6 `linux_armv6` (Pi 1, Zero) | same, run under `qemu-arm` (`cortex-a15` / `arm1176`) on ubuntu-24.04; the arm64 runner is not assumed to run AArch32 |
-| 2, not run | freebsd/amd64, freebsd/arm64, openbsd/amd64, openbsd/arm64, netbsd/amd64, netbsd/arm64, linux/riscv64, linux/ppc64le, linux/s390x, linux/loong64, illumos/amd64 | build, reproducible, header check |
+| 2, emulated smoke | linux/riscv64 (`qemu-riscv64`), linux/ppc64le (`qemu-ppc64le -cpu power9`), linux/s390x (`qemu-s390x -cpu max`), linux/loong64 (`qemu-loongarch64`) | same, qemu-user of the Ubuntu 24.04 archive (qemu 8.2.2 ships all four binaries; the same smoke also passed locally with qemu 10) |
+| 2, build only | freebsd/amd64, freebsd/arm64, openbsd/amd64, openbsd/arm64, netbsd/amd64, netbsd/arm64, illumos/amd64 | build, reproducible, header check |
 
 19 archives; the publish job requires exactly 19. Other 32-bit targets are not shipped (the
 owner asked for 64-bit, plus Raspberry Pi). SPARC is not supported by Go any more.
-Emulated smoke for the tier 2 Linux architectures was left out to keep the workflow small.
+Follow-up after the first dry run (not in this change): FreeBSD, OpenBSD, NetBSD and illumos
+amd64 could be smoke-tested in KVM virtual machines through a SHA-pinned cross-platform VM
+action; the owner approves each third-party action first. The arm64 BSDs stay build-only.
 All targets gate the release: one failed build or smoke stops publication.
 
 ## Owner setup (not done by this change)
@@ -68,7 +76,7 @@ All targets gate the release: one failed build or smoke stops publication.
 
 1. Pick the `main` commit `<sha>` whose `ci` push run is green.
 2. Dry run: Actions, release, Run workflow on `main` (default label `v0.0.0-dryrun`). Expect
-   verify (without the tag-only steps), 19 builds, 8 smokes, and no publish. Fix and re-run
+   verify (without the tag-only steps), 19 builds, 6 native and 6 emulated smokes, and no publish. Fix and re-run
    until green; a dry run publishes nothing.
 3. Tag and push:
 
@@ -81,7 +89,7 @@ All targets gate the release: one failed build or smoke stops publication.
 4. The workflow verifies, builds, smokes and publishes the release (a draft when the
    variable is set; publish it by hand then).
 5. Check: the release has 19 archives and `SHA256SUMS`; download one, then
-   `sha256sum --check --ignore-missing SHA256SUMS`, `gh attestation verify <archive> --repo wstein/chartscribe`,
+   `sha256sum --check --ignore-missing SHA256SUMS` (macOS: `grep ' <archive>$' SHA256SUMS | shasum -a 256 --check`), `gh attestation verify <archive> --repo wstein/chartscribe`,
    and `cscribe version` prints `cscribe v0.1.0`; `go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.0`
    works once the module proxy has the tag.
 

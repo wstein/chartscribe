@@ -3,6 +3,7 @@
 package releaseworkflow
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -231,18 +232,39 @@ func TestMatrixMatchesThePlatformTable(t *testing.T) {
 	if got := matrixTargets(js["build"]); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("build targets %v, want %v", got, want)
 	}
-	// Every tier 1 target is smoked, natively or under qemu; no tier 2 target is.
-	smoked := append(matrixTargets(js["smoke"]), matrixTargets(js["smoke-emulated"])...)
-	sort.Strings(smoked)
-	sort.Strings(tier1)
-	if strings.Join(smoked, " ") != strings.Join(tier1, " ") {
-		t.Errorf("smoked %v, want the tier 1 targets %v", smoked, tier1)
+	// Every archive is smoked natively or under qemu, unless it is on the explicit build-only list.
+	native := matrixTargets(js["smoke"])
+	emulated := matrixTargets(js["smoke-emulated"])
+	for _, p := range platforms {
+		inNative := contains(native, p.target)
+		inEmulated := contains(emulated, p.target)
+		reason, buildOnly := buildOnly[p.target]
+		switch {
+		case buildOnly && (inNative || inEmulated):
+			t.Errorf("%s is on the build-only list (%s) but is smoked", p.target, reason)
+		case !buildOnly && !inNative && !inEmulated:
+			t.Errorf("%s has neither a native nor an emulated smoke and is not on the build-only list", p.target)
+		case inNative && inEmulated:
+			t.Errorf("%s is smoked twice", p.target)
+		}
+		if inEmulated && p.goos != "linux" {
+			t.Errorf("%s: qemu-user runs Linux binaries only", p.target)
+		}
 	}
-	if e := matrixTargets(js["smoke-emulated"]); strings.Join(e, " ") != "linux_armv7 linux_armv6" {
-		t.Errorf("emulated smoke targets %v, want the Raspberry Pi archives", e)
+	for _, n := range append(append([]string{}, native...), emulated...) {
+		known := false
+		for _, p := range platforms {
+			known = known || p.target == n
+		}
+		if !known {
+			t.Errorf("smoke target %s is not in the platform table", n)
+		}
 	}
-	if !strings.Contains(js["smoke-emulated"], "qemu-arm -cpu arm1176") || !strings.Contains(js["smoke-emulated"], "qemu-arm -cpu cortex-a15") {
-		t.Error("emulated smoke does not name the qemu cpus")
+	for tg, cpu := range map[string]string{"linux_armv7": "qemu-arm -cpu cortex-a15", "linux_armv6": "qemu-arm -cpu arm1176",
+		"linux_riscv64": "qemu-riscv64", "linux_ppc64le": "qemu-ppc64le -cpu power9", "linux_s390x": "qemu-s390x -cpu max", "linux_loong64": "qemu-loongarch64"} {
+		if !strings.Contains(js["smoke-emulated"], "target: "+tg+"\n            ext: tar.gz\n            run: "+cpu+"\n") {
+			t.Errorf("emulated smoke of %s does not run %q", tg, cpu)
+		}
 	}
 	// The expected archive count of the publish job follows the table.
 	if !strings.Contains(js["publish"], "          n="+itoa(len(platforms))+"\n") {
@@ -253,6 +275,23 @@ func TestMatrixMatchesThePlatformTable(t *testing.T) {
 			t.Errorf("no native runner for %s", p.target)
 		}
 	}
+}
+
+// buildOnly lists the archives that no job runs, each with its reason.
+var buildOnly = map[string]string{
+	"freebsd_amd64": "BSD system calls: qemu-user runs Linux only", "freebsd_arm64": "BSD system calls: qemu-user runs Linux only",
+	"openbsd_amd64": "BSD system calls: qemu-user runs Linux only", "openbsd_arm64": "BSD system calls: qemu-user runs Linux only",
+	"netbsd_amd64": "BSD system calls: qemu-user runs Linux only", "netbsd_arm64": "BSD system calls: qemu-user runs Linux only",
+	"illumos_amd64": "illumos system calls: qemu-user runs Linux only",
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func itoa(n int) string {
@@ -316,6 +355,209 @@ func TestMakefileStaysFreeOfBuildTargets(t *testing.T) {
 	for _, bad := range []string{"go build", "goreleaser", "release:", "dist:", "build:"} {
 		if strings.Contains(mk, bad) {
 			t.Errorf("Makefile must have no build or release target: found %q", bad)
+		}
+	}
+}
+
+// step is one workflow step: its text and the body of its run: block (empty without one).
+type step struct{ text, run string }
+
+var stepStart = regexp.MustCompile(`(?m)^      - `)
+
+// stepsOf splits a job's text into steps. A run: block runs until the first line indented
+// less than its body.
+func stepsOf(job string) []step {
+	locs := stepStart.FindAllStringIndex(job, -1)
+	var out []step
+	for n, l := range locs {
+		end := len(job)
+		if n+1 < len(locs) {
+			end = locs[n+1][0]
+		}
+		text := job[l[0]:end]
+		st := step{text: text}
+		lines := strings.Split(text, "\n")
+		for i, line := range lines {
+			t := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
+			if !strings.HasPrefix(t, "run:") {
+				continue
+			}
+			rest := strings.TrimSpace(strings.TrimPrefix(t, "run:"))
+			if rest != "|" {
+				st.run = rest
+				break
+			}
+			var body []string
+			for _, b := range lines[i+1:] {
+				if strings.TrimSpace(b) != "" && !strings.HasPrefix(b, "          ") {
+					break
+				}
+				body = append(body, strings.TrimPrefix(b, "          "))
+			}
+			st.run = strings.TrimSpace(strings.Join(body, "\n"))
+			break
+		}
+		out = append(out, st)
+	}
+	return out
+}
+
+// allowedActions is every action the workflow may use, with its exact pin.
+var allowedActions = map[string]bool{
+	"actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1":                true,
+	"actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0":                true,
+	"actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2":         true,
+	"actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2":       true,
+	"actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2": true,
+}
+
+var (
+	swallowRe = regexp.MustCompile(`\|\|\s*(true|:)(\s|$|;)`)
+	disarmRe  = regexp.MustCompile(`(?m)(^|\s)(exit 0|set \+e)(\s|$)|\|\|\s*echo\b`)
+	// qemuInstall is the one permitted package installation: the emulator of the Raspberry Pi smoke.
+	qemuInstall = "sudo apt-get update\nsudo apt-get install -y --no-install-recommends qemu-user"
+)
+
+// violations lists the rule breaks of a release workflow text.
+func violations(raw string) []string {
+	var out []string
+	add := func(format string, a ...any) { out = append(out, strings.TrimSpace(sprintf(format, a...))) }
+	jt := jobsOf(raw)
+	for name, job := range jt {
+		for _, st := range stepsOf(job) {
+			if i := strings.Index(st.text, "uses: "); i >= 0 {
+				ref := strings.TrimSpace(strings.SplitN(st.text[i+len("uses: "):], "\n", 2)[0])
+				if !allowedActions[ref] {
+					add("job %s uses an action that is not on the allowed list: %s", name, ref)
+				}
+				if strings.HasPrefix(ref, "actions/checkout@") && !strings.Contains(st.text, "persist-credentials: false") {
+					add("job %s checkout must set persist-credentials: false", name)
+				}
+				if strings.HasPrefix(ref, "actions/upload-artifact@") && name != "build" {
+					add("only build may upload artifacts, job %s does", name)
+				}
+				if strings.HasPrefix(ref, "actions/download-artifact@") && name != "smoke" && name != "smoke-emulated" && name != "publish" {
+					add("only the smoke and publish jobs may download artifacts, job %s does", name)
+				}
+			}
+			run := st.run
+			if run == "" {
+				continue
+			}
+			if strings.Contains(run, "\n") && !strings.HasPrefix(run, "set -euo pipefail\n") {
+				add("job %s multi-line script must start with set -euo pipefail", name)
+			}
+			if strings.Contains(run, "${{") {
+				add("job %s interpolates an expression inside a run script; pass it through env", name)
+			}
+			if swallowRe.MatchString(run) {
+				add("job %s script ignores a failure with || true or || :", name)
+			}
+			if disarmRe.MatchString(run) {
+				add("job %s script can succeed past a failure (exit 0, set +e, || echo)", name)
+			}
+			checked := strings.ReplaceAll(run, qemuInstall, "")
+			if name != "smoke-emulated" {
+				checked = run
+			}
+			for _, banned := range []string{"curl ", "wget ", "pip ", "npm ", "go install", "apt-get", "brew "} {
+				if strings.Contains(checked, banned) {
+					add("job %s run script fetches or installs a tool (%s)", name, strings.TrimSpace(banned))
+				}
+			}
+		}
+	}
+	if regexp.MustCompile(`(?m)^\s*(?:- )?uses:\s*\S+@(?:v\d|main|master)\b`).MatchString(raw) {
+		add("a uses: line names a mutable ref")
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sprintf(format string, a ...any) string { return fmt.Sprintf(format, a...) }
+
+// jobsOf is jobs without a testing.T.
+func jobsOf(raw string) map[string]string {
+	i := strings.Index(raw, "\njobs:\n")
+	if i < 0 {
+		return nil
+	}
+	body := raw[i+len("\njobs:\n"):]
+	locs := jobHeader.FindAllStringSubmatchIndex(body, -1)
+	out := map[string]string{}
+	for n, l := range locs {
+		end := len(body)
+		if n+1 < len(locs) {
+			end = locs[n+1][0]
+		}
+		out[body[l[2]:l[3]]] = body[l[0]:end]
+	}
+	return out
+}
+
+func TestReleaseWorkflowHasNoViolations(t *testing.T) {
+	if v := violations(readRepo(t, ".github/workflows/release.yml")); len(v) != 0 {
+		t.Errorf("violations:\n%s", strings.Join(v, "\n"))
+	}
+}
+
+func TestWeakeningTheWorkflowIsCaught(t *testing.T) {
+	raw := readRepo(t, ".github/workflows/release.yml")
+	smokeCheckout := "  smoke:\n"
+	cases := []struct{ name, from, to, want string }{
+		{"persist-credentials dropped", "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2\n        with:\n          name: release-${{ matrix.target }}\n          path: ${{ runner.temp }}/dist\n      - name: Smoke-test",
+			"      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2\n        with:\n          name: release-${{ matrix.target }}\n          path: ${{ runner.temp }}/dist\n      - name: Smoke-test", "persist-credentials"},
+		{"persist-credentials true", "persist-credentials: false", "persist-credentials: true", "persist-credentials"},
+		{"expression in run", `          sh .github/scripts/release-verify.sh go`, "", ""},
+		{"swallowed failure", `sh .github/scripts/release-smoke.sh "$VERSION" "$dist/cscribe_${plain}_${TARGET}.$EXT"`, `sh .github/scripts/release-smoke.sh "$VERSION" "$dist/cscribe_${plain}_${TARGET}.$EXT" || true`, "|| true"},
+		{"unlisted action", "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0", "actions/setup-go@0000000000000000000000000000000000000000 # v7.0.0", "allowed list"},
+		{"other apt-get", "sudo apt-get update\n", "sudo apt-get update\n          sudo apt-get install -y curl\n", "apt-get"},
+		{"no strict mode", "          set -euo pipefail\n          sudo apt-get update", "          sudo apt-get update", "set -euo pipefail"},
+	}
+	_ = smokeCheckout
+	for _, c := range cases {
+		from, to, want := c.from, c.to, c.want
+		if c.name == "expression in run" {
+			from = `plain=${VERSION#v}`
+			to = `plain=${{ needs.verify.outputs.version }}`
+			want = "expression"
+		}
+		if !strings.Contains(raw, from) {
+			t.Fatalf("%s: the mutation target is not in the workflow", c.name)
+		}
+		mutated := strings.Replace(raw, from, to, 1)
+		v := strings.Join(violations(mutated), "\n")
+		if !strings.Contains(v, want) {
+			t.Errorf("%s: not caught (want %q), violations:\n%s", c.name, want, v)
+		}
+	}
+}
+
+func TestPublishGatesOnTheSmokeJobs(t *testing.T) {
+	p := jobs(t, readRepo(t, ".github/workflows/release.yml"))["publish"]
+	if !strings.Contains(p, "needs: [verify, build, smoke, smoke-emulated]") {
+		t.Error("publish must wait for the native and the emulated smoke jobs")
+	}
+}
+
+func TestOnlyTheReleaseWorkflowRunsReleaseJobsAndQemu(t *testing.T) {
+	rel := readRepo(t, ".github/workflows/release.yml")
+	if i := strings.Index(rel, "\non:\n"); i < 0 || !strings.HasPrefix(rel[i:], "\non:\n  push:\n    tags: ['v[0-9]+.[0-9]+.[0-9]+']\n  workflow_dispatch:\n    inputs:\n") {
+		t.Error("release.yml triggers must be exactly a tag push and workflow_dispatch")
+	}
+	entries, err := os.ReadDir(filepath.Join(repoRoot(t), ".github", "workflows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() == "release.yml" {
+			continue
+		}
+		raw := strings.ToLower(readRepo(t, ".github/workflows/"+e.Name()))
+		for _, bad := range []string{"qemu", "release.yml", "smoke-emulated", "release-smoke", "release-package"} {
+			if strings.Contains(raw, bad) {
+				t.Errorf("%s must not reference %q: only the release workflow runs release jobs", e.Name(), bad)
+			}
 		}
 	}
 }
