@@ -22,10 +22,10 @@ testdata/               fixture collections: valid, one per failing rule, chartr
 One PR (or a short stack) per slice; each ends with `make check` green.
 
 1. `validate`: parser, rules, outputs. Fixtures from `chartroom/scripts/test_check_notes.py`; a snapshot of the 64 chartroom notes is committed under `testdata/` (no private data; notes are the owner's public design notes, confirm before commit).
-2. `init`: embedded templates, plan/apply, per-tool tests; T201 verifies Obsidian and zk keys by hand.
+2. `init`: embedded templates, plan/apply, per-tool tests; the key verification is recorded in the init contract.
 3. `new`, `list`, `tags`, `links`, `backlinks` on the slice-1 parser.
 4. `tracking`: `gh` behind an interface; tests use a fake runner, one optional test uses real `gh`.
-5. Optional: `--fix`, MCP.
+5. Optional: `--fix`. MCP is deferred until slices 1-4 are in use.
 
 ## Agent resources and manual
 
