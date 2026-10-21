@@ -4,33 +4,104 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // Version is the cscribe version. Release builds set it with
 // -ldflags "-X github.com/wstein/chartscribe/internal/cli.Version=<version>".
 var Version = "dev"
 
-const usage = "usage: cscribe version\n"
+// Exit codes (see specs/001-note-tooling/contracts/validate-output.md).
+const (
+	exitOK       = 0
+	exitFindings = 1
+	exitUsage    = 2
+	exitEnv      = 3
+)
+
+// exitError carries a non-usage exit code out of a command. Run is the only
+// place that maps errors to exit codes.
+type exitError struct {
+	code int
+	err  error
+}
+
+func (e exitError) Error() string { return e.err.Error() }
+func (e exitError) Unwrap() error { return e.err }
+
+// runtimeFailure is a failure that is neither a usage nor an environment error
+// (for example a failed write to stdout).
+type runtimeFailure struct{ error }
 
 // Run executes cscribe with the given arguments (without the program name)
-// and returns the process exit code.
-func Run(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, usage)
-		return 2
+// and returns the process exit code. Each call owns a fresh command tree.
+func Run(ctx context.Context, version string, args []string, stdout, stderr io.Writer) int {
+	if err := ctx.Err(); err != nil {
+		return report(stderr, err, exitFindings)
 	}
-	switch args[0] {
-	case "version":
-		if len(args) > 1 {
-			fmt.Fprintln(stderr, "cscribe: version takes no arguments")
-			return 2
+	root := newRoot(version, stdout, stderr)
+	if args == nil {
+		args = []string{} // cobra reads os.Args for nil
+	}
+	root.SetArgs(args)
+	if err := root.ExecuteContext(ctx); err != nil {
+		return exitStatus(stderr, err)
+	}
+	return exitOK
+}
+
+func exitStatus(stderr io.Writer, err error) int {
+	var coded exitError
+	if errors.As(err, &coded) {
+		if coded.err != nil {
+			report(stderr, coded.err, coded.code)
 		}
-		fmt.Fprintf(stdout, "cscribe %s\n", Version)
-		return 0
-	default:
-		fmt.Fprintf(stderr, "cscribe: unknown command %q\n%s", args[0], usage)
-		return 2
+		return coded.code
 	}
+	var failure runtimeFailure
+	if errors.As(err, &failure) {
+		return report(stderr, err, exitFindings)
+	}
+	return report(stderr, err, exitUsage)
+}
+
+func report(stderr io.Writer, err error, code int) int {
+	fmt.Fprintln(stderr, "Error:", strings.NewReplacer("\r", " ", "\n", " ").Replace(err.Error()))
+	return code
+}
+
+func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
+	if version == "" {
+		version = "dev"
+	}
+	root := &cobra.Command{
+		Use:           "cscribe",
+		Short:         "Validate and maintain a Zettelkasten note collection",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Args:          cobra.NoArgs,
+		RunE:          func(cmd *cobra.Command, args []string) error { return cmd.Help() },
+	}
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetIn(strings.NewReader(""))
+	root.CompletionOptions.DisableDefaultCmd = true
+	root.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print the cscribe version",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "cscribe %s\n", version); err != nil {
+				return runtimeFailure{err}
+			}
+			return nil
+		},
+	})
+	return root
 }
