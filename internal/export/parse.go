@@ -31,6 +31,8 @@ type parsed struct {
 	targets    []string // wikilink targets in prose, in order, not in the Links section
 	sources    []string // Source: texts in order
 	shallowest int      // level of the shallowest kept heading
+	unclosed   bool     // the body ends inside a fenced block
+	closing    string   // the line that closes it in the output; empty when that part is dropped
 }
 
 var (
@@ -54,7 +56,8 @@ func parse(body string) *parsed {
 	text := strings.TrimRight(body, "\n")
 	// Fenced code is found by the scanner that validate and tracking share; an
 	// unclosed fence runs to the end of the body.
-	fenced, _ := note.CodeLines(text)
+	fenced, unclosed := note.CodeLines(text)
+	p.unclosed = unclosed
 	for i, raw := range strings.Split(text, "\n") {
 		if fenced[i] {
 			indented, prevBlank = false, false
@@ -105,6 +108,9 @@ func parse(body string) *parsed {
 			return text
 		})
 		p.lines = append(p.lines, pline{text: raw, kind: kText})
+	}
+	if closing, ok := note.ClosingFence(text); ok && !skipLinks {
+		p.closing = closing
 	}
 	return p
 }

@@ -82,7 +82,6 @@ refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`,
   `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
   ([query output](../specs/001-note-tooling/contracts/query-output.md)). `links` prints `unresolved` for a target
   that names no note; `validate` is the check that fails on it.
-- Known limitation: `new` does not detect titles that differ only in Unicode normalization (NFC/NFD); such titles collide on macOS.
 
 ## Linking notes to issues
 
@@ -107,6 +106,17 @@ with `--out` lists them. Only Markdown: render it with Hugo, Quartz or pandoc
 and Quartz files (`--tool zk|obsidian|quartz` limits it). Show the human the plan first. An existing file is
 replaced only with `--overwrite <path>` or `--overwrite all`, which you use only when the human asks. A rerun
 writes nothing. Details: [init contract](../specs/001-note-tooling/contracts/init-files.md).
+
+## Known limitations
+
+- Titles that differ only in Unicode normalization (NFC/NFD) are not detected by `new`; they collide on macOS.
+- The fenced-code scanner (`validate`, `tracking`, `export`) differs from a full CommonMark parser in the cases below.
+  A missed fence makes the wikilinks and `#` lines inside it count as prose.
+  - A CRLF fence line never closes (collection loading and `tracking` strip `\r` first, so this is unreachable there).
+  - A tab before a fence is not seen as a fence (top level, in a quote, in a list).
+  - A fence after a list marker inside a quote is seen, but not a quote marker after a list marker (`- > ` then a fence).
+  - A continuation line inside a quoted list (`> - item`, `>`, then an indented fence) is not seen.
+  - After a nested list item, a fence on a continuation of the outer item is not seen (only the innermost item indent is tracked).
 
 ## Boundaries
 
