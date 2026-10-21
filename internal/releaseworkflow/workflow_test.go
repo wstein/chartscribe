@@ -415,7 +415,7 @@ var (
 	swallowRe = regexp.MustCompile(`\|\|\s*(true|:)(\s|$|;)`)
 	disarmRe  = regexp.MustCompile(`(?m)(^|\s)(exit 0|set \+e)(\s|$)|\|\|\s*echo\b`)
 	// qemuInstall is the one permitted package installation: the emulator of the Raspberry Pi smoke.
-	qemuInstall = "sudo apt-get update\nsudo apt-get install -y --no-install-recommends qemu-user"
+	qemuInstall = "sudo apt-get install -y --no-install-recommends qemu-user"
 )
 
 // violations lists the rule breaks of a release workflow text.
@@ -456,9 +456,16 @@ func violations(raw string) []string {
 			if disarmRe.MatchString(run) {
 				add("job %s script can succeed past a failure (exit 0, set +e, || echo)", name)
 			}
-			checked := strings.ReplaceAll(run, qemuInstall, "")
-			if name != "smoke-emulated" {
-				checked = run
+			checked := run
+			if name == "smoke-emulated" {
+				// Only the exact install lines are allowed, whole line, nothing appended.
+				var kept []string
+				for _, line := range strings.Split(run, "\n") {
+					if l := strings.TrimSpace(line); l != "sudo apt-get update" && l != qemuInstall {
+						kept = append(kept, line)
+					}
+				}
+				checked = strings.Join(kept, "\n")
 			}
 			for _, banned := range []string{"curl ", "wget ", "pip ", "npm ", "go install", "apt-get", "brew "} {
 				if strings.Contains(checked, banned) {
@@ -511,6 +518,7 @@ func TestWeakeningTheWorkflowIsCaught(t *testing.T) {
 		{"expression in run", `          sh .github/scripts/release-verify.sh go`, "", ""},
 		{"swallowed failure", `sh .github/scripts/release-smoke.sh "$VERSION" "$dist/cscribe_${plain}_${TARGET}.$EXT"`, `sh .github/scripts/release-smoke.sh "$VERSION" "$dist/cscribe_${plain}_${TARGET}.$EXT" || true`, "|| true"},
 		{"unlisted action", "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0", "actions/setup-go@0000000000000000000000000000000000000000 # v7.0.0", "allowed list"},
+		{"package appended to the qemu install", "--no-install-recommends qemu-user\n", "--no-install-recommends qemu-user curl\n", "apt-get"},
 		{"other apt-get", "sudo apt-get update\n", "sudo apt-get update\n          sudo apt-get install -y curl\n", "apt-get"},
 		{"no strict mode", "          set -euo pipefail\n          sudo apt-get update", "          sudo apt-get update", "set -euo pipefail"},
 	}
