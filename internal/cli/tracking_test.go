@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -376,5 +377,75 @@ func TestTrackingKeepsACollectionValid(t *testing.T) {
 	}
 	if code, out, _ := run("--root", root, "tracking", "--write"); code != 0 || !strings.Contains(out, "0 changed") {
 		t.Fatalf("rerun: code %d, stdout %q", code, out)
+	}
+}
+
+func TestTrackingSkipsNoteEndingInsideFence(t *testing.T) {
+	root, _ := trackingCollection(t)
+	path := filepath.Join(root, "notes", "Third note.md")
+	text := strings.Replace(noteHead, "%s", "20261021120200", 1) + "Body\n\n```sh\nopen\n"
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	useRunner(t, &stubRunner{out: `[{"number":5,"title":"Chartroom: 20261021120200 x","state":"OPEN","url":"u","body":""}]`})
+	for i := 0; i < 2; i++ {
+		code, _, errOut := run("--root", root, "tracking", "--write")
+		data, _ := os.ReadFile(path)
+		if code != 0 || string(data) != text || !strings.Contains(errOut, "Third note.md") || !strings.Contains(errOut, "unclosed code fence") {
+			t.Fatalf("run %d: code %d, stderr %q, text %q", i, code, errOut, data)
+		}
+	}
+}
+
+// Writing twice never adds a second section, whatever the notes contain.
+func TestTrackingIsIdempotent(t *testing.T) {
+	root, _ := trackingCollection(t)
+	extra := map[string]string{
+		"List fence.md":      "Body\n\n- ```sh\n  ## Tracking\n  ```\n\nSource: s, lines 1-2\n",
+		"Ordered fence.md":   "Body\n\n1. ~~~\n   x\n   ~~~\n",
+		"Quote fence.md":     "Body\n\n> ```\n> ## Tracking\n> ```\n",
+		"Backtick info.md":   "Body\n\n``` a`b\n\n## Tracking\n\n- #1 old (open) u\n",
+		"Existing.md":        "Body\n\n## Tracking\n\n- #1 old (open) u\n\n## Later\n",
+		"Fenced heading.md":  "Body\n\n```\n## Tracking\n```\n",
+		"Trailing blanks.md": "Body\n\n\n\n",
+	}
+	var issues []string
+	n := 0
+	for name, body := range extra {
+		n++
+		id := fmt.Sprintf("202610211300%02d", n)
+		text := strings.Replace(noteHead, "%s", id, 1) + body
+		if err := os.WriteFile(filepath.Join(root, "notes", name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		issues = append(issues, fmt.Sprintf(`{"number":%d,"title":"Chartroom: %s x","state":"OPEN","url":"u","body":""}`, n, id))
+	}
+	issues = append(issues, `{"number":90,"title":"Chartroom: 20261021120000 x","state":"OPEN","url":"u","body":""}`)
+	useRunner(t, &stubRunner{out: "[" + strings.Join(issues, ",") + "]"})
+	if code, _, errOut := run("--root", root, "tracking", "--write"); code != 0 {
+		t.Fatalf("first run: code %d, stderr %q", code, errOut)
+	}
+	first := readAll(t, root)
+	code, out, errOut := run("--root", root, "tracking", "--write")
+	if code != 0 || !strings.Contains(out, " 0 changed") || errOut != "" {
+		t.Fatalf("second run: code %d, stdout %q, stderr %q", code, out, errOut)
+	}
+	for name, text := range readAll(t, root) {
+		if text != first[name] {
+			t.Errorf("%s changed on the second run", name)
+		}
+		realHeadings := 0
+		fenced, _ := note.CodeLines(text)
+		for i, l := range strings.Split(text, "\n") {
+			if l == "## Tracking" && !fenced[i] {
+				realHeadings++
+			}
+		}
+		if realHeadings > 1 {
+			t.Errorf("%s has %d tracking sections", name, realHeadings)
+		}
+	}
+	if !strings.Contains(first["List fence.md"], "\n## Tracking\n\n- #") || strings.Count(first["Existing.md"], "- #") != 1 {
+		t.Fatalf("sections not written: %q %q", first["List fence.md"], first["Existing.md"])
 	}
 }

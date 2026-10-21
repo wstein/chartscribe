@@ -157,6 +157,9 @@ func planTracking(cmd *cobra.Command, root, id, title, rel, path string, issues 
 	if perr != nil || !strings.HasSuffix(text, body) {
 		return p, false, nil
 	}
+	if note.UnclosedFence(body) {
+		return skip("the body ends inside an unclosed code fence")
+	}
 	if note.StaleTracking(body) {
 		fmt.Fprintf(cmd.ErrOrStderr(), "warning %s: a second ## Tracking section is stale and stays; remove it by hand\n", rel)
 	}
