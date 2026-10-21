@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wstein/chartscribe/internal/collection"
+	"github.com/wstein/chartscribe/internal/fix"
 	"github.com/wstein/chartscribe/internal/validate"
 )
 
@@ -33,6 +34,29 @@ type validateDocument struct {
 	OK       bool          `json:"ok"`
 	Notes    int           `json:"notes"`
 	Findings []jsonFinding `json:"findings"`
+	Fix      *fixDocument  `json:"fix,omitempty"`
+}
+
+type fixDocument struct {
+	Mode    string       `json:"mode"` // plan or apply
+	Applied bool         `json:"applied"`
+	Before  int          `json:"findings_before"`
+	After   int          `json:"findings_after"`
+	Edits   []jsonEdit   `json:"edits"`
+	Refused []jsonRefuse `json:"refused"`
+}
+
+type jsonEdit struct {
+	File string `json:"file"`
+	Line int    `json:"line"`
+	Rule string `json:"rule"`
+	Old  string `json:"old"`
+	New  string `json:"new"`
+}
+
+type jsonRefuse struct {
+	File   string `json:"file"`
+	Reason string `json:"reason"`
 }
 
 type errorDocument struct {
@@ -66,6 +90,7 @@ func failure(cmd *cobra.Command, opts *globalOptions, code int, kind string, err
 
 func validateCommand(opts *globalOptions) *cobra.Command {
 	var rules []string
+	var fixFlag, apply bool
 	cmd := &cobra.Command{
 		Use:     "validate",
 		Aliases: []string{"lint"},
@@ -74,6 +99,11 @@ func validateCommand(opts *globalOptions) *cobra.Command {
 the rule name, the note and a message. Files are only read: no network, no write.
 
 Findings go to stderr, the summary to stdout; with --json one document goes to stdout.
+
+--fix plans the safe fixes and shows each exact edit; --apply (with --fix) writes them. Only certain
+fixes are planned, and each is kept only if re-running validate on the result shows fewer findings and
+no new one. Fixable rules: ` + strings.Join(fix.Rules, ", ") + `. Note bodies are not changed.
+
 Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,6 +112,9 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 					return failure(cmd, opts, exitUsage, "usage",
 						fmt.Errorf("unknown rule %q (known: %s)", r, strings.Join(validate.Rules, ", ")))
 				}
+			}
+			if apply && !fixFlag {
+				return failure(cmd, opts, exitUsage, "usage", errors.New("--apply needs --fix"))
 			}
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -93,6 +126,9 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 			}
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
+			}
+			if fixFlag {
+				return runFix(cmd, opts, root, rules, apply)
 			}
 			res, err := validate.Run(root)
 			if err != nil {
@@ -109,6 +145,8 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 		},
 	}
 	cmd.Flags().StringSliceVar(&rules, "rule", nil, "Limit the output to this rule (repeatable or comma-separated)")
+	cmd.Flags().BoolVar(&fixFlag, "fix", false, "Plan the safe fixes of the findings (writes nothing without --apply)")
+	cmd.Flags().BoolVar(&apply, "apply", false, "With --fix: write the planned fixes")
 	return cmd
 }
 
