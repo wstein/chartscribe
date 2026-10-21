@@ -12,10 +12,10 @@ help:
 	  'No build, release or publication targets.'
 
 fmt:
-	gofmt -w cmd internal
+	gofmt -w .
 
 fmt-check:
-	@files=$$(gofmt -l cmd internal) || exit $$?; \
+	@files=$$(gofmt -l .) || exit $$?; \
 	  if test -n "$$files"; then printf 'Run make fmt:\n%s\n' "$$files"; exit 1; fi
 
 vet:
