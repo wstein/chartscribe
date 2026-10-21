@@ -11,8 +11,13 @@ free text and is not compared. One issue may name several ids. Issues are listed
 **Section.** Per [validate rules](validate-rules.md#tracking-section) the section runs from `## Tracking` to the next
 `## ` heading or the end of the file. Each issue is `- #<number> <title> (<state>) <url>` with the title on one line and
 the state lowercase (`open`, `closed`). A note with issues gets the section replaced, or appended after a blank line;
-a note without issues loses it. The result is stable: a second run changes nothing. A note with CRLF line ends or
-unparsable frontmatter is not touched (CRLF: warning on stderr).
+a note without issues loses it. The result is stable: a second run changes nothing. A note with CRLF line ends, a symbolic
+link, or a path that resolves outside the collection is not touched (warning `skipped <path>: ...` on stderr, exit 0), nor
+one with unparsable frontmatter. Headings and `Chartroom:` lines inside fenced code blocks (CommonMark fences) are neither
+a section nor a link. A second `## Tracking` section stays and is reported as a warning on stderr.
+`--write` is all or nothing: every temporary file is created first and every note must be unchanged since it was read; the
+files are then renamed. A failure before that writes nothing; a rename that fails reports the notes written and not
+written (exit 3). Control and format characters in an issue title are replaced by spaces.
 
 **Output.** Without `--write` only the plan is printed. Human: one line per changed note `path`, `add|update|remove`,
 issue count (tab separated), then `tracking: <N> notes, <M> to change (dry run; --write applies)` (with `--write`:
