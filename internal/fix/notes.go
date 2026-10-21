@@ -32,9 +32,10 @@ func equal(a, b []string) bool {
 	return true
 }
 
-// normalizeTags trims a tag, drops a leading #, lower-cases a type/, status/ or category/ tag when the
-// lower-case value is in the vocabulary, and drops empty and repeated tags. Other tags keep their text.
-func normalizeTags(in []string, v collection.Vocabulary) []string {
+// normalizeTags lower-cases the value of a type/, status/ or category/ tag when the lower-case value is in
+// the vocabulary, and drops a repeated tag of those namespaces. Every other tag is kept as it is. folded
+// reports whether a value was lower-cased.
+func normalizeTags(in []string, v collection.Vocabulary) (out []string, folded bool) {
 	namespaces := []struct {
 		name    string
 		allowed []string
@@ -44,23 +45,28 @@ func normalizeTags(in []string, v collection.Vocabulary) []string {
 		{"category", v.Category},
 	}
 	seen := map[string]bool{}
-	out := []string{}
+	out = []string{}
 	for _, t := range in {
-		t = strings.TrimPrefix(strings.TrimSpace(t), "#")
-		lower := strings.ToLower(t)
 		for _, ns := range namespaces {
-			if value, ok := strings.CutPrefix(lower, ns.name+"/"); ok && contains(ns.allowed, value) {
-				t = lower
-				break
+			value, ok := strings.CutPrefix(t, ns.name+"/")
+			if !ok {
+				continue
 			}
+			if lower := strings.ToLower(value); !contains(ns.allowed, value) && contains(ns.allowed, lower) {
+				t = ns.name + "/" + lower
+				folded = true
+			}
+			if seen[t] {
+				t = ""
+			}
+			seen[t] = true
+			break
 		}
-		if t == "" || seen[t] {
-			continue
+		if t != "" {
+			out = append(out, t)
 		}
-		seen[t] = true
-		out = append(out, t)
 	}
-	return out
+	return out, folded
 }
 
 // dedupeAliases drops aliases that repeat the title or an earlier alias, case-insensitively.
@@ -124,6 +130,7 @@ func noteEdits(file, name, text string, vocab collection.Vocabulary, usedIDs map
 
 	if v, ok := fm.Get("id"); ok && !v.IsList && !note.ValidID(v.Text) {
 		if id, ok := derivedID(v.Text); ok && !usedIDs[id] {
+			usedIDs[id] = true
 			add("id", "id: "+id, "id-invalid")
 		}
 	}
@@ -138,17 +145,19 @@ func noteEdits(file, name, text string, vocab collection.Vocabulary, usedIDs map
 		}
 	}
 	if v, ok := fm.Get("tags"); ok && !v.NonString {
-		rule := "tag-count"
-		if found["tag-invalid"] {
-			rule = "tag-invalid"
-		}
 		switch {
 		case v.IsList && (found["tag-invalid"] || found["tag-count"]):
-			if want := normalizeTags(v.List, vocab); !equal(want, v.List) {
+			want, folded := normalizeTags(v.List, vocab)
+			if !equal(want, v.List) {
+				rule := "tag-count"
+				if folded {
+					rule = "tag-invalid"
+				}
 				add("tags", flowList("tags", want), rule)
 			}
 		case !v.IsList && scalarTag(v.Text):
-			add("tags", flowList("tags", normalizeTags([]string{v.Text}, vocab)), "list-type")
+			want, _ := normalizeTags([]string{v.Text}, vocab)
+			add("tags", flowList("tags", want), "list-type")
 		}
 	}
 	return edits

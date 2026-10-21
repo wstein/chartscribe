@@ -3,6 +3,7 @@
 package fix
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,15 +36,13 @@ func mapEdits(findings []validate.Finding, texts, orig map[string]string) []line
 	infos := map[string]noteInfo{}
 	for name, text := range texts {
 		fm, _, err := note.Parse(text)
-		if err != nil {
-			continue
-		}
 		tv, _ := fm.Get("tags")
-		var info noteInfo
-		if tv.IsList && !tv.NonString {
-			info.cat, info.hasC = categoryOf(tv.List)
-			info.isMap = contains(tv.List, "type/map")
+		if err != nil || !tv.IsList || tv.NonString {
+			return nil // this note may be a map: the map of a category is not certain
 		}
+		var info noteInfo
+		info.cat, info.hasC = categoryOf(tv.List)
+		info.isMap = contains(tv.List, "type/map")
 		infos[name] = info
 	}
 	var unlisted []string
@@ -73,13 +72,31 @@ func mapEdits(findings []validate.Finding, texts, orig map[string]string) []line
 			continue
 		}
 		file := "notes/" + maps[0]
-		lines := strings.Split(orig[maps[0]], "\n")
-		at := len(lines)
-		for at > 0 && lines[at-1] == "" {
-			at--
+		at, bullet, ok := listEnd(strings.Split(orig[maps[0]], "\n"))
+		if !ok {
+			continue
 		}
 		edits = append(edits, lineEdit{file: file, start: at, end: at,
-			repl: []string{"- [[" + strings.TrimSuffix(name, ".md") + "]]"}, rule: "map-unlisted"})
+			repl: []string{bullet + " [[" + strings.TrimSuffix(name, ".md") + "]]"}, rule: "map-unlisted"})
 	}
 	return edits
+}
+
+var bulletLink = regexp.MustCompile(`^([-*]) +\[\[`)
+
+// listEnd finds where a link goes in a map: the line after its list of links. The list is the one run of
+// consecutive lines `- [[...` (or `* [[...`) without indent; no run, or more than one, is not certain.
+func listEnd(lines []string) (at int, bullet string, ok bool) {
+	last := -1
+	for i, l := range lines {
+		m := bulletLink.FindStringSubmatch(l)
+		if m == nil {
+			continue
+		}
+		if last >= 0 && i != last+1 {
+			return 0, "", false
+		}
+		last, bullet = i, m[1]
+	}
+	return last + 1, bullet, last >= 0
 }
