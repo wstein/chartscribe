@@ -73,7 +73,9 @@ func ReadNotes(root string) ([]File, error) {
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, File{Name: e.Name(), Text: string(data)})
+		// Like the reference (Python read_text), treat \r\n and a lone \r as \n.
+		text := strings.ReplaceAll(strings.ReplaceAll(string(data), "\r\n", "\n"), "\r", "\n")
+		files = append(files, File{Name: e.Name(), Text: text})
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Name < files[j].Name })
 	return files, nil

@@ -93,3 +93,15 @@ func TestReadNotes(t *testing.T) {
 		t.Errorf("Title = %q", files[0].Title())
 	}
 }
+
+func TestReadNotesNormalisesLineEndings(t *testing.T) {
+	root := t.TempDir()
+	notes := mkdir(t, root, "notes")
+	if err := os.WriteFile(filepath.Join(notes, "n.md"), []byte("a\r\nb\rc\nd"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	files, err := ReadNotes(root)
+	if err != nil || len(files) != 1 || files[0].Text != "a\nb\nc\nd" {
+		t.Errorf("got %#v, %v", files, err)
+	}
+}
