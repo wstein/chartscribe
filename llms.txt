@@ -37,7 +37,8 @@ the exact command, the findings and the exit status.
 
 - `make check` runs `gofmt -l`, `go vet ./...` and `go test ./...`; Go 1.27.2
 - The parity test runs `chartroom/scripts/check_notes.py` of the Anchorage workspace on the same
-  fixtures when `python3` and the script are available (`CHARTROOM_REF=<path to chartroom>`); it is skipped otherwise
+  fixtures when `python3` and the script are available (`CHECK_NOTES_PY=<path to check_notes.py>`;
+  `CHARTROOM_COLLECTION=<dir>` adds a collection); it is skipped otherwise
 
 ## Optional
 
