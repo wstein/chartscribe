@@ -12,7 +12,12 @@ import (
 
 func build(t *testing.T, start string, depth int) Result {
 	t.Helper()
-	x, err := index.Load(filepath.Join("..", "..", "testdata", "export", "basic"))
+	return buildIn(t, "basic", start, depth, "")
+}
+
+func buildIn(t *testing.T, fixture, start string, depth int, title string) Result {
+	t.Helper()
+	x, err := index.Load(filepath.Join("..", "..", "testdata", "export", fixture))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +25,7 @@ func build(t *testing.T, start string, depth int) Result {
 	if !ok {
 		t.Fatalf("no note %q", start)
 	}
-	return Build(x, n, depth)
+	return Build(x, n, depth, title)
 }
 
 func titles(r Result) string {
@@ -113,6 +118,77 @@ func TestSlug(t *testing.T) {
 	} {
 		if got := slug(in); got != want {
 			t.Errorf("slug(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestCodeAndLinksSectionAreNotMembers(t *testing.T) {
+	r := buildIn(t, "code", "Start", 1, "")
+	if got := titles(r); got != "Start,Real,InListItem" {
+		t.Errorf("members: %s", got)
+	}
+	if len(r.Unresolved) != 0 {
+		t.Errorf("unresolved from code: %v", r.Unresolved)
+	}
+	for _, keep := range []string{"`[[InInline]]`", "``a `[[InDouble]]` b``", "[[InFence]]", "[[InNested]]", "[[InTilde]]", "    [[InIndented]]", "`[[Ghost]]`"} {
+		if !strings.Contains(r.Markdown, keep) {
+			t.Errorf("code text %q was changed:\n%s", keep, r.Markdown)
+		}
+	}
+	if strings.Contains(r.Markdown, "Related") {
+		t.Errorf("Links section leaked:\n%s", r.Markdown)
+	}
+}
+
+func TestAnchorsAreUnique(t *testing.T) {
+	md := buildIn(t, "anchors", "Start", 1, "").Markdown
+	// Alpha's body heading "Part" takes the slug before the note "Part".
+	for _, want := range []string{"[Part](#part-1)", "[Foo Bar](#foo-bar)", "[Foo-Bar](#foo-bar-1)", "[Alpha](#alpha)"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("missing %q in:\n%s", want, md)
+		}
+	}
+}
+
+func TestBodyHeadingsEndBelowTheSection(t *testing.T) {
+	md := buildIn(t, "anchors", "Start", 1, "").Markdown
+	// Alpha is a level 2 section; its body "# Top" / "## Part" become ### and ####.
+	for _, want := range []string{"\n## Alpha\n", "\n### Top\n", "\n#### Part\n"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("missing %q in:\n%s", want, md)
+		}
+	}
+}
+
+func TestTitleOverride(t *testing.T) {
+	r := buildIn(t, "anchors", "Alpha", 0, "The Report")
+	if !strings.HasPrefix(r.Markdown, "# The Report\n") || r.Notes[0].Title != "Alpha" {
+		t.Errorf("%s / %v", r.Markdown, r.Notes)
+	}
+}
+
+func TestFenceInLinksSectionIsDropped(t *testing.T) {
+	p := parse("Body\n\n## Links\n\n```\n[[X]]\n```\n\nSource: s, lines 1-2\n\n## After\n")
+	var texts []string
+	for _, l := range p.lines {
+		texts = append(texts, l.text)
+	}
+	if got := strings.Join(texts, "|"); strings.Contains(got, "```") || strings.Contains(got, "[[X]]") || len(p.targets) != 0 || len(p.sources) != 1 {
+		t.Errorf("lines %q targets %v sources %v", got, p.targets, p.sources)
+	}
+}
+
+func TestMapTextSpans(t *testing.T) {
+	up := func(s string) string { return strings.ToUpper(s) }
+	for in, want := range map[string]string{
+		"a `b` c":       "A `b` C",
+		"a ``b ` c`` d": "A ``b ` c`` D",
+		"a `b c":        "A `B C",
+		"a ``b` c":      "A ``B` C",
+		"`a` and `b`":   "`a` AND `b`",
+	} {
+		if got := mapText(in, up); got != want {
+			t.Errorf("mapText(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
