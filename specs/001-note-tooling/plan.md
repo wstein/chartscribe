@@ -29,7 +29,7 @@ One PR (or a short stack) per slice; each ends with `make check` green.
 
 ## Agent resources and manual
 
-Help text carries the agent hint; `llms.txt` and `docs/agent-guide.md` ship in slice 1 (layout of `sheetmill/`).
+The root help carries the agent hint (subcommands plain, as the siblings); `llms.txt` and `docs/agent-guide.md` ship in slice 1 (layout of `sheetmill/`).
 A separate small PR adds `docs/` and a Pages workflow modelled on `sheetmill/.github/workflows/pages.yml`
 (SHA-pinned actions, pinned Hugo with checksum, checks before deploy, least privilege, concurrency `pages`).
 Unlike `sheetmill`, `cscribe` has no site generator of its own, so the manual is plain Hugo over `docs/`.

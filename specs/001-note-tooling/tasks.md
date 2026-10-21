@@ -25,7 +25,7 @@ TDD order: in each group the test task comes first and fails before its implemen
 ## Slice 1 - validate
 
 - [ ] T101 Test: `internal/cli.Run(ctx, version, args, stdout, stderr)` with `version` and an unknown command (exit 2) on a cobra root, one fresh tree per call; add cobra v1.10.2; decide the TOML library.
-- [ ] T101a Test: the agent hint appears in the root help and in every subcommand help (walk the command tree). Implement the hint. Write `llms.txt` and `docs/agent-guide.md` after `sheetmill/`.
+- [ ] T101a Test: the agent hint appears in the root help only; subcommand help stays plain (walk the command tree). Implement the hint. Write `llms.txt` and `docs/agent-guide.md` after `sheetmill/`.
 - [ ] T101c Test (FR-012): fails when `go.mod` or an import names a `zk-org` module or code starts a `zk` process (scan sources for `exec.Command("zk"`).
 - [ ] T101b Test: root discovery (FR-002): nearest directory with `notes/` from a subdirectory, `--root`, none found gives exit 3.
 - [ ] T102 Test: frontmatter parser table (flow list, block list, quoted, plain, single-quoted, comment, `[]`, unterminated, bad line). Implement `internal/note` parser.
