@@ -13,7 +13,7 @@ collection has a `notes/` folder of Markdown files, one idea per file. The
 implemented commands besides `version` are `cscribe validate` (alias `lint`), which
 checks every rule of the note format without network access and without writing, and
 `cscribe init`, which writes tool configuration (see below), and the native note commands
-`new`, `list`, `tags`, `links` and `backlinks` (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
+`new`, `list`, `tags`, `links` and `backlinks` and the `tracking` command (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
 and are not implemented yet.
 
 ## Setting up
@@ -76,6 +76,14 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
   `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
   ([query output](../specs/001-note-tooling/contracts/query-output.md)). `links` prints `unresolved` for a target
   that names no note; `validate` is the check that fails on it.
+
+## Linking notes to issues
+
+`cscribe tracking` prints which notes get a changed `## Tracking` section and writes nothing; show the human the plan,
+then run `cscribe tracking --write`. It needs the GitHub CLI (`gh`, logged in) in the repository of the issues and links
+an issue to a note through a line `Chartroom: <id> <title>` in the issue title or body. Only that section changes. Exit 3
+means `gh` is missing or failing or 200 issues came back (the list may be incomplete); do not work around it by editing
+the section by hand. Details: [tracking output](../specs/001-note-tooling/contracts/tracking-output.md).
 
 ## Configuring the tools
 

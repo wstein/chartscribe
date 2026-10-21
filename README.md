@@ -20,7 +20,7 @@ only writes formats it reads unchanged. Manual (planned): <https://wstein.github
 
 ## Status
 
-Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init`, `new`, `list`, `tags`, `links`, `backlinks` and `version`; the other
+Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init`, `new`, `list`, `tags`, `links`, `backlinks`, `tracking` and `version`; the other
 commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 
 ## Commands
@@ -34,6 +34,7 @@ cscribe [--root DIR] [--json] list [--tag TAG]
 cscribe [--root DIR] [--json] tags
 cscribe [--root DIR] [--json] links NOTE
 cscribe [--root DIR] [--json] backlinks NOTE
+cscribe [--root DIR] [--json] tracking [--write]
 cscribe version
 ```
 
@@ -70,6 +71,12 @@ title, alias, file name or id; links resolve like `validate` resolves them (titl
 `#heading` ignored) and unresolved targets are printed as `unresolved`. These commands only read files, skip
 notes whose frontmatter does not parse (with a warning on stderr) and exit 2 for an unknown NOTE.
 `--json` output is specified in [query output](specs/001-note-tooling/contracts/query-output.md).
+
+`tracking` reads the issues of the current repository with `gh issue list --state all --limit 200` and rewrites only the
+`## Tracking` section of each note whose id appears in a `Chartroom: <id> <title>` line of an issue title or body (lines
+`- #<n> <title> (<state>) <url>`). It prints the plan and writes nothing unless `--write` is given; bytes outside the
+section stay identical. `gh` missing or failing, or 200 issues returned (some may be missing), exits 3. It is the only
+command that starts a process; it never uses the network itself. See [tracking output](specs/001-note-tooling/contracts/tracking-output.md).
 
 The collection of the Anchorage workspace is checked with `cscribe --root chartroom validate`; the
 umbrella switches its `make chartroom-check` from `chartroom/scripts/check_notes.py` in a separate pull request.
