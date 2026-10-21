@@ -33,6 +33,7 @@ type Result struct {
 	Markdown   string
 	Notes      []Included
 	Unresolved []Unresolved
+	Warnings   []string // for example an unclosed code fence in a note
 }
 
 var wikilink = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
@@ -152,6 +153,14 @@ func Build(x *index.Index, start index.Note, depth int, title string) Result {
 					})
 				}))
 			}
+		}
+		if p.closing != "" {
+			// The note's text ends inside a fence: close it so the rest of the
+			// document stays intact.
+			out = append(out, p.closing)
+		}
+		if p.unclosed {
+			res.Warnings = append(res.Warnings, "unclosed code fence in "+s.note.Title)
 		}
 		out = append(out, "")
 	}

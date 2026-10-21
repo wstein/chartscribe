@@ -22,6 +22,7 @@ type exportDocument struct {
 	Start      jsonNote            `json:"start"`
 	Notes      []export.Included   `json:"notes"`
 	Unresolved []export.Unresolved `json:"unresolved"`
+	Warnings   []string            `json:"warnings"`
 }
 
 func exportCommand(opts *globalOptions) *cobra.Command {
@@ -46,7 +47,7 @@ make a note a member.
 The document goes to stdout, or with --out FILE to that file, which is never overwritten
 without --force. --out is refused (exit 2) inside the collection's notes/ tree and at a
 symbolic link, even with --force; a missing directory or a directory as FILE is exit 3.
-Nothing else is written. Unresolved links are warned on stderr. With --json
+Nothing else is written. Unresolved links and unclosed code fences are warned on stderr. With --json
 (which needs --out FILE) one document lists the included notes and the unresolved links.
 Exit status: 0 done, 2 usage error (including a refused overwrite), 3 environment error.`,
 		Args: cobra.ExactArgs(1),
@@ -87,7 +88,10 @@ Exit status: 0 done, 2 usage error (including a refused overwrite), 3 environmen
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
 			if opts.json {
-				doc := exportDocument{1, "export", true, "md", depth, toJSONNote(start), res.Notes, res.Unresolved}
+				doc := exportDocument{1, "export", true, "md", depth, toJSONNote(start), res.Notes, res.Unresolved, res.Warnings}
+				if doc.Warnings == nil {
+					doc.Warnings = []string{}
+				}
 				if doc.Unresolved == nil {
 					doc.Unresolved = []export.Unresolved{}
 				}
@@ -95,6 +99,9 @@ Exit status: 0 done, 2 usage error (including a refused overwrite), 3 environmen
 			}
 			for _, u := range res.Unresolved {
 				fmt.Fprintf(cmd.ErrOrStderr(), "unresolved [[%s]] in %s\n", u.Target, u.Note)
+			}
+			for _, w := range res.Warnings {
+				fmt.Fprintln(cmd.ErrOrStderr(), w)
 			}
 			return nil
 		},

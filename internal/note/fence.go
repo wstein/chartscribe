@@ -23,7 +23,22 @@ type fence struct {
 // many, and only spaces after; a line that leaves the container ends the fence;
 // an unclosed fence runs to the end.
 func CodeLines(text string) (fenced []bool, unclosed bool) {
-	var open *fence
+	fenced, open := scanFences(text)
+	return fenced, open != nil
+}
+
+// ClosingFence returns the line that closes the fence text ends inside (the
+// same character and length, in the same quote and list container), and false
+// when text does not end inside a fence.
+func ClosingFence(text string) (string, bool) {
+	_, open := scanFences(text)
+	if open == nil {
+		return "", false
+	}
+	return strings.Repeat("> ", open.quotes) + strings.Repeat(" ", open.indent) + strings.Repeat(string(open.char), open.n), true
+}
+
+func scanFences(text string) (fenced []bool, open *fence) {
 	for _, line := range strings.Split(text, "\n") {
 		if open != nil {
 			rest, in := stripContainer(line, open)
@@ -46,7 +61,7 @@ func CodeLines(text string) (fenced []bool, unclosed bool) {
 		}
 		fenced = append(fenced, false)
 	}
-	return fenced, open != nil
+	return fenced, open
 }
 
 // UnclosedFence reports whether text ends inside a fenced code block.
