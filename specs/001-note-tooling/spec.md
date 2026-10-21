@@ -103,12 +103,12 @@ server over stdio exposes the read commands. Both are optional and may be droppe
 | FR-011 | The notes `cscribe` writes are readable by `zk` unchanged (filename = title, `id`/`aliases`/`tags`, `[[wikilinks]]`). | 2-4 |
 | FR-012 | No dependency on `zk` code or binary: a test fails when `go.mod` or an import names a `zk-org` module or `cscribe` starts a `zk` process. | all |
 | FR-013 | The CLI uses `github.com/spf13/cobra` at the version pinned by the sibling tools (v1.10.2 in `sourcesteward` and `sheetmill`) with their command-tree and exit-code boundary: `internal/cli.Run(ctx, version, args, stdout, stderr) int` owns a fresh command tree per call and is the only place that maps errors to exit codes. | 1 |
-| FR-014 | Help text carries the agent hint in the sibling pattern (below); the repository ships `llms.txt` and `docs/agent-guide.md`; a test asserts the hint in the root help and in every subcommand help. | 1 |
+| FR-014 | The root help carries the agent hint in the sibling pattern (below); the repository ships `llms.txt` and `docs/agent-guide.md`; a test asserts the hint in the root help and its absence from subcommand help (as the siblings, which add it to the root help only). | 1 |
 | FR-015 | A manual built from `docs/` is published at <https://wstein.github.io/chartscribe/> by a Pages workflow modelled on `sheetmill/.github/workflows/pages.yml`: actions pinned by SHA, Hugo pinned with checksum, deploy only after the checks pass, least-privilege permissions, concurrency group `pages`. A separate PR adds it. The Quartz view of chartroom is separate. | Pages |
 
 ## Agent hint and manual
 
-Help text carries the hint of the sibling tools (`sourcesteward` `agentHints`, `sheetmill` `agentHelp`):
+The root help carries the hint of the sibling tools (`sourcesteward` `agentHints`, `sheetmill` `agentHelp`):
 
 ```text
 Are you an AI? Use these resources ONLY IF your task specifically asks you to:
@@ -152,7 +152,7 @@ Hence the gate is `cscribe validate`. Obsidian's Properties editor rewrites fron
 - SC-001: `cscribe validate` on the chartroom collection: 0 findings; every failure fixture gives its finding; the five mutation probes (broken wikilink, duplicate id, renamed category, category swapped to another valid one, note removed from a map) each give a finding.
 - SC-002: Golden files for human and JSON output; exit codes 0, 1, 2, 3 each tested.
 - SC-003: `init` into an empty directory, run twice: the second plan lists nothing to write; a pre-existing file is unchanged byte for byte without `--overwrite`.
-- SC-006: Help text of the root and of every subcommand contains the agent hint (test); `llms.txt` and `docs/agent-guide.md` exist.
+- SC-006: The root help contains the agent hint and subcommand help does not (test); `llms.txt` and `docs/agent-guide.md` exist.
 - SC-007: The Pages workflow builds the manual from `docs/` after the checks; the deploy job runs on `main` only.
 - SC-004: A generated collection passes `validate`; when `zk` is installed an optional CI test runs `zk list --format json` and `zk graph` on it and finds every note and every wikilink.
 - SC-005: When slice 1 is accepted, the umbrella's `make chartroom-check` calls `cscribe validate` and the Python checker is removed in the same PR (that PR belongs to the umbrella; tag, release and the BundleDock entry need the owner's approval).
