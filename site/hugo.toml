@@ -1,0 +1,4 @@
+baseURL = "https://wstein.github.io/chartscribe/"
+languageCode = "en"
+title = "ChartScribe"
+disableKinds = ["taxonomy", "term", "RSS"]
