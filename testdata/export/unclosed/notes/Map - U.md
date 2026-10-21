@@ -7,6 +7,7 @@ Map.
 - [[A]]
 - [[B]]
 - [[C]]
+- [[E]]
 - [[D]]
 
 Source: M, lines 1-2
