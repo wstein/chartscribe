@@ -20,7 +20,7 @@ only writes formats it reads unchanged. Manual (planned): <https://wstein.github
 
 ## Status
 
-Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init`, `new`, `list`, `tags`, `links`, `backlinks`, `tracking` and `version`; the other
+Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init`, `new`, `list`, `tags`, `links`, `backlinks`, `tracking`, `export` and `version`; the other
 commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 
 ## Commands
@@ -36,6 +36,7 @@ cscribe [--root DIR] [--json] tags
 cscribe [--root DIR] [--json] links NOTE
 cscribe [--root DIR] [--json] backlinks NOTE
 cscribe [--root DIR] [--json] tracking [--write]
+cscribe [--root DIR] [--json] export NOTE [--format md] [--out FILE|-] [--depth N] [--title TEXT] [--force]
 cscribe version
 ```
 
@@ -87,6 +88,15 @@ notes whose frontmatter does not parse (with a warning on stderr) and exit 2 for
 `- #<n> <title> (<state>) <url>`). It prints the plan and writes nothing unless `--write` is given; bytes outside the
 section stay identical. `gh` missing or failing, or 200 issues returned (some may be missing), exits 3. It is the only
 command that starts a process; it never uses the network itself. See [tracking output](specs/001-note-tooling/contracts/tracking-output.md).
+`export NOTE` generates one Markdown document from a note, usually a map: the knowledge base stays notes and
+documents are generated from them. The title is the start note; the notes its wikilinks name follow in link
+(map) order as heading sections (`--depth`, default 1; each note once), without frontmatter, `## Links` section
+and `Source:` lines. A wikilink to a note in the document becomes an anchor link, any other one its text; the
+`Source:` lines are collected, without duplicates, into a final `## Sources` section. The output has no
+timestamps, so a rerun gives the same bytes. It goes to stdout or `--out FILE`, which is never replaced without
+`--force` and never inside `notes/` or at a symbolic link; nothing else is written. Wikilinks in code and in the `## Links` section do not pull notes in. `--title TEXT` replaces the document title. Only Markdown is generated (`--format md`): render it with Hugo, Quartz or
+pandoc. `--json` (with `--out`) lists the included notes and the unresolved links; see
+[export contract](specs/001-note-tooling/contracts/export.md).
 
 The collection of the Anchorage workspace is checked with `cscribe --root chartroom validate`; the
 umbrella switches its `make chartroom-check` from `chartroom/scripts/check_notes.py` in a separate pull request.

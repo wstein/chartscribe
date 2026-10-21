@@ -13,7 +13,7 @@ collection has a `notes/` folder of Markdown files, one idea per file. The
 implemented commands besides `version` are `cscribe validate` (alias `lint`), which
 checks every rule of the note format without network access and without writing (unless `--fix --apply`), and
 `cscribe init`, which writes tool configuration (see below), and the native note commands
-`new`, `list`, `tags`, `links` and `backlinks` and the `tracking` command (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
+`new`, `list`, `tags`, `links`, `backlinks`, `export` and the `tracking` command (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
 and are not implemented yet.
 
 ## Setting up
@@ -82,6 +82,7 @@ refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`,
   `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
   ([query output](../specs/001-note-tooling/contracts/query-output.md)). `links` prints `unresolved` for a target
   that names no note; `validate` is the check that fails on it.
+- Known limitation: `new` does not detect titles that differ only in Unicode normalization (NFC/NFD); such titles collide on macOS.
 
 ## Linking notes to issues
 
@@ -90,6 +91,15 @@ then run `cscribe tracking --write`. It needs the GitHub CLI (`gh`, logged in) i
 an issue to a note through a line `Chartroom: <id> <title>` in the issue title or body. Only that section changes. Exit 3
 means `gh` is missing or failing or 200 issues came back (the list may be incomplete); do not work around it by editing
 the section by hand. Details: [tracking output](../specs/001-note-tooling/contracts/tracking-output.md).
+
+## Generating a document
+
+`cscribe export "Map - Topic" --out topic.md` writes one Markdown document from a map (or any note): the
+notes it links to become heading sections in map order (`--depth N` follows links further), links between them
+become anchors, `Source:` lines are collected in a final `## Sources` section. The output is reproducible (no
+timestamps) and `--out` is never overwritten without `--force`, never inside `notes/` and never at a symbolic link; `--title TEXT` sets the document title; wikilinks in code and in `## Links` pull no notes in. Unresolved links are warned on stderr; `--json`
+with `--out` lists them. Only Markdown: render it with Hugo, Quartz or pandoc
+([contract](../specs/001-note-tooling/contracts/export.md)).
 
 ## Configuring the tools
 

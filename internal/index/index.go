@@ -25,6 +25,20 @@ type Note struct {
 	body    string // without the generated tracking section
 }
 
+// Body returns the note text after the frontmatter, without the generated
+// tracking section.
+func (n Note) Body() string { return n.body }
+
+// IsMap reports whether the note carries the tag type/map.
+func (n Note) IsMap() bool {
+	for _, t := range n.Tags {
+		if t == "type/map" {
+			return true
+		}
+	}
+	return false
+}
+
 // Index is the notes of one collection in file-name order.
 type Index struct {
 	Root    string // the collection root
@@ -110,6 +124,16 @@ func (x *Index) Find(arg string) (Note, bool) {
 		}
 	}
 	return Note{}, false
+}
+
+// Resolve returns the note a wikilink target names (title or alias, ignoring
+// case, the |label and the #heading).
+func (x *Index) Resolve(target string) (Note, bool) {
+	i, ok := x.byName[note.LinkName(target)]
+	if !ok {
+		return Note{}, false
+	}
+	return x.Notes[i], true
 }
 
 // Links returns the wikilinks of n in body order, resolved like validate does:

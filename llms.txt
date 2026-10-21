@@ -5,8 +5,9 @@
 > Today it validates a collection (`cscribe validate`, alias `lint`; reads files
 > only: no network, no process start, no write unless `--fix --apply`), writes tool configuration
 > (`cscribe init`, plan by default, `--apply` writes missing files only), creates notes
-> (`cscribe new`), reads them (`list`, `tags`, `links`, `backlinks`; read-only, `--json`) and
-> rewrites the `## Tracking` section from GitHub issues (`cscribe tracking`, plan by default, `--write` applies; starts `gh`).
+> (`cscribe new`), reads them (`list`, `tags`, `links`, `backlinks`; read-only, `--json`),
+> rewrites the `## Tracking` section from GitHub issues (`cscribe tracking`, plan by default, `--write` applies; starts `gh`) and generates one reproducible
+> Markdown document from a map or note (`cscribe export`; writes only `--out`, never overwrites without `--force`).
 
 Use this file to debug or investigate a ChartScribe problem. To help a human set up
 ChartScribe or write notes, read the agent guide instead. Contributors working inside
@@ -33,6 +34,7 @@ the exact command, the findings and the exit status.
 - [Init files](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/init-files.md): files `init` writes and the verified keys
 - [Query output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/query-output.md): `new`, `list`, `tags`, `links`, `backlinks` output and JSON
 - [Tracking output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/tracking-output.md): issue link rule, section lines, plan and JSON
+- [Export](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/export.md): `export` rules and an exact output example
 - [Validate output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/validate-output.md): human and JSON output, exit codes
 
 ## Code map
@@ -43,6 +45,7 @@ the exact command, the findings and the exit status.
 - `internal/collection`: collection root discovery, `.cscribe.toml`, loading `notes/*.md`
 - `internal/tracking`: gh runner interface, issue parsing and the `Chartroom:` link rule
 - `internal/index`: notes, tags, links and backlinks for the query commands
+- `internal/export`: the Markdown document of `export` (order, anchors, sources)
 - `internal/validate`: the rules and findings
 - `internal/initcmd`: the embedded `init` file set, plan and apply (symlink and overwrite guards)
 - `testdata`: fixture collections (a chartroom-shaped snapshot and one fixture per failing rule)
