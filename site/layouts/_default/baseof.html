@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} - {{ .Site.Title }}{{ end }}</title>
+<meta name="description" content="{{ .Description | default .Site.Title }}">
+<style>:root{color-scheme:light dark}body{max-width:46rem;margin:2rem auto;padding:0 1rem;font:1rem/1.6 system-ui,sans-serif}pre,code{font-family:ui-monospace,monospace}pre{overflow-x:auto}</style>
+</head>
+<body>
+<header><a href="{{ .Site.Home.RelPermalink }}">{{ .Site.Title }}</a></header>
+<main>{{ block "main" . }}{{ end }}</main>
+</body>
+</html>

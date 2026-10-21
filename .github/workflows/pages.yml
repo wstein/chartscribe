@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: EUPL-1.2
+# Publishes the manual built from docs/ at https://wstein.github.io/chartscribe/.
+# Modelled on sheetmill/.github/workflows/pages.yml. The Quartz view of the chartroom
+# collection is separate. Owner approval of this workflow and its first run is required.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .go-version
+          check-latest: false
+      # Deploy only a revision that passes the core checks.
+      - run: make check
+      - name: Install pinned Hugo
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hugo"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/hugo/hugo.tar.gz" https://github.com/gohugoio/hugo/releases/download/v0.167.0/hugo_0.167.0_linux-amd64.tar.gz
+          echo '4d84519b9f619e6d4c3fb45a50157abeabeb724f859c60605f44c23def6e1169  '"$RUNNER_TEMP/hugo/hugo.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/hugo/hugo.tar.gz" -C "$RUNNER_TEMP/hugo" hugo
+      - name: Build the manual from docs/
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/site"
+          cp site/hugo.toml "$RUNNER_TEMP/site/hugo.toml"
+          cp -r site/layouts "$RUNNER_TEMP/site/layouts"
+          cp -r docs "$RUNNER_TEMP/site/content"
+          HUGO_CACHEDIR="$RUNNER_TEMP/hugo-cache" "$RUNNER_TEMP/hugo/hugo" --source "$RUNNER_TEMP/site" --destination "$RUNNER_TEMP/public" --noBuildLock --quiet
+          test -s "$RUNNER_TEMP/public/index.html"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/public
+  deploy:
+    name: deploy
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
