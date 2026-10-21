@@ -38,3 +38,47 @@ func TestReplaceTracking(t *testing.T) {
 		})
 	}
 }
+
+func TestTrackingIgnoresFencedHeading(t *testing.T) {
+	fenced := "Text\n\n```md\n## Tracking\n\n- #1 x (open) u\n```\n\nMore\n"
+	if got := StripTracking(fenced); got != fenced {
+		t.Fatalf("fenced heading stripped: %q", got)
+	}
+	want := fenced + "\n## Tracking\n\n- #2 B (open) u\n"
+	if got := ReplaceTracking(fenced, []string{"- #2 B (open) u"}); got != want {
+		t.Fatalf("got %q", got)
+	}
+	tests := []struct{ name, body, want string }{
+		{"tilde and longer closer", "~~~~\n## Tracking\n~~~~~\n\n## Tracking\n\n- a\n", "~~~~\n## Tracking\n~~~~~\n\n"},
+		{"shorter closer does not close", "````\n```\n## Tracking\n````\n", "````\n```\n## Tracking\n````\n"},
+		{"other char does not close", "```\n~~~\n## Tracking\n```\n", "```\n~~~\n## Tracking\n```\n"},
+		{"unclosed fence runs to the end", "```\n## Tracking\n", "```\n## Tracking\n"},
+		{"fenced heading ends nothing", "## Tracking\n\n- a\n```\n## Other\n```\n\n## Later\n", "## Later\n"},
+		{"indented four spaces is no fence", "    ```\n## Tracking\n\n- a\n", "    ```\n"},
+	}
+	for _, tt := range tests {
+		if got := StripTracking(tt.body); got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestStaleTracking(t *testing.T) {
+	if !StaleTracking("## Tracking\n\n- a\n\n## Tracking\n\n- b\n") {
+		t.Fatal("second section not reported")
+	}
+	if StaleTracking("## Tracking\n\n- a\n\n```\n## Tracking\n```\n") || StaleTracking("text\n") {
+		t.Fatal("false report")
+	}
+	got := ReplaceTracking("## Tracking\n\n- a\n\n## Tracking\n\n- b\n", []string{"- c"})
+	if got != "## Tracking\n\n- c\n\n## Tracking\n\n- b\n" {
+		t.Fatalf("first section not replaced alone: %q", got)
+	}
+}
+
+func TestStripCode(t *testing.T) {
+	got := StripCode("a\n```\nChartroom: 1\n```\nb\n")
+	if got != "a\nb\n" {
+		t.Fatalf("got %q", got)
+	}
+}

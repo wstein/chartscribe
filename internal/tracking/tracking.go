@@ -14,6 +14,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+
+	"github.com/wstein/chartscribe/internal/note"
 )
 
 // Limit is the number of issues one query asks for; getting that many back
@@ -101,7 +104,7 @@ func ByNote(issues []Issue) map[string][]Issue {
 	by := map[string][]Issue{}
 	for _, is := range issues {
 		seen := map[string]bool{}
-		for _, text := range []string{is.Title, strings.ReplaceAll(is.Body, "\r", "")} {
+		for _, text := range []string{is.Title, note.StripCode(strings.ReplaceAll(is.Body, "\r", ""))} {
 			for _, m := range link.FindAllStringSubmatch(text, -1) {
 				if !seen[m[1]] {
 					seen[m[1]] = true
@@ -118,6 +121,17 @@ func ByNote(issues []Issue) map[string][]Issue {
 
 // Line is the Tracking line of an issue: `- #<n> <title> (<state>) <url>`.
 func Line(is Issue) string {
-	title := strings.Join(strings.Fields(is.Title), " ")
-	return fmt.Sprintf("- #%d %s (%s) %s", is.Number, title, strings.ToLower(is.State), is.URL)
+	return fmt.Sprintf("- #%d %s (%s) %s", is.Number, oneLine(is.Title), strings.ToLower(oneLine(is.State)), oneLine(is.URL))
+}
+
+// oneLine puts s on one line: control and format characters (ESC, NUL, bidi
+// overrides) and any whitespace become single spaces.
+func oneLine(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return ' '
+		}
+		return r
+	}, s)
+	return strings.Join(strings.Fields(s), " ")
 }

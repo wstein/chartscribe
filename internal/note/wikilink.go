@@ -53,43 +53,102 @@ func StripTracking(body string) string {
 	return body[:start] + body[end:]
 }
 
-// trackingSpan returns the byte range of the tracking section of body.
+// trackingSpan returns the byte range of the first tracking section of body.
+// Headings inside fenced code blocks are not headings.
 func trackingSpan(body string) (start, end int, ok bool) {
 	from := 0
 	if loc := sourceLine.FindStringIndex(body); loc != nil {
 		from = loc[1]
 	}
 	start = -1
-	for pos := from; pos < len(body); {
-		next := strings.IndexByte(body[pos:], '\n')
-		lineEnd := len(body)
-		if next >= 0 {
-			lineEnd = pos + next
+	end = len(body)
+	eachLine(body, func(ls, le int, fenced bool) bool {
+		if fenced {
+			return true
 		}
-		atLineStart := pos == 0 || body[pos-1] == '\n'
-		if atLineStart && body[pos:lineEnd] == "## Tracking" {
-			start = pos
-			break
+		line := body[ls:le]
+		if start < 0 {
+			if ls >= from && line == "## Tracking" {
+				start = ls
+			}
+			return true
 		}
-		if next < 0 {
-			break
+		if ls > start && strings.HasPrefix(line, "## ") {
+			end = ls
+			return false
 		}
-		pos = lineEnd + 1
-	}
+		return true
+	})
 	if start < 0 {
 		return 0, 0, false
 	}
-	end = len(body)
-	for pos := start + len("## Tracking"); pos < len(body); {
-		nl := strings.IndexByte(body[pos:], '\n')
-		if nl < 0 {
-			break
-		}
-		pos += nl + 1
-		if strings.HasPrefix(body[pos:], "## ") {
-			end = pos
-			break
-		}
-	}
 	return start, end, true
+}
+
+// StaleTracking reports a second `## Tracking` heading after the first
+// section (outside code fences); ReplaceTracking leaves it in place.
+func StaleTracking(body string) bool {
+	_, end, ok := trackingSpan(body)
+	if !ok {
+		return false
+	}
+	found := false
+	eachLine(body, func(ls, le int, fenced bool) bool {
+		if ls >= end && !fenced && body[ls:le] == "## Tracking" {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// StripCode removes the lines of fenced code blocks (fences included), so a
+// marker inside a code block is not read as a marker.
+func StripCode(text string) string {
+	var sb strings.Builder
+	eachLine(text, func(ls, le int, fenced bool) bool {
+		if !fenced {
+			sb.WriteString(text[ls:min(le+1, len(text))])
+		}
+		return true
+	})
+	return sb.String()
+}
+
+var fenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
+
+// eachLine calls fn for every line of text (ls..le excludes the newline) with
+// whether the line belongs to a fenced code block. Fences follow CommonMark: an
+// opening of three or more backticks (no backtick in the info string) or
+// tildes with up to three spaces of indent, closed by a line of the same
+// character, at least as long, and nothing else; an unclosed fence runs to the end.
+func eachLine(text string, fn func(ls, le int, fenced bool) bool) {
+	var char byte
+	n := 0
+	for ls := 0; ls < len(text); {
+		le := strings.IndexByte(text[ls:], '\n')
+		next := len(text)
+		if le < 0 {
+			le = len(text)
+		} else {
+			le += ls
+			next = le + 1
+		}
+		line := text[ls:le]
+		fenced := char != 0
+		if char == 0 {
+			if m := fenceOpen.FindStringSubmatch(line); m != nil && !(m[1][0] == '`' && strings.Contains(m[2], "`")) {
+				char, n, fenced = m[1][0], len(m[1]), true
+			}
+		} else if t := strings.TrimLeft(line, " "); len(line)-len(t) <= 3 {
+			if r := strings.TrimRight(t, " \t"); len(r) >= n && strings.Trim(r, string(char)) == "" {
+				char = 0
+			}
+		}
+		if !fn(ls, le, fenced) {
+			return
+		}
+		ls = next
+	}
 }
