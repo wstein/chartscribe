@@ -254,3 +254,24 @@ func TestExportRefusesCaseAliasOfNotes(t *testing.T) {
 		t.Error("a note was changed")
 	}
 }
+
+func TestExportWarnsAboutAnUnclosedFence(t *testing.T) {
+	root := filepath.Join("..", "..", "testdata", "export", "unclosed")
+	code, out, errOut := run("--root", root, "export", "Map - U")
+	if code != 0 || !strings.Contains(out, "\n## Sources\n") {
+		t.Fatalf("code %d, out %q", code, out)
+	}
+	if !strings.Contains(errOut, "unclosed code fence in A\n") || !strings.Contains(errOut, "unclosed code fence in D\n") {
+		t.Errorf("stderr %q", errOut)
+	}
+	file := filepath.Join(t.TempDir(), "u.md")
+	code, jout, _ := run("--root", root, "--json", "export", "Map - U", "--out", file)
+	if code != 0 || !strings.Contains(jout, `"warnings": [`) || !strings.Contains(jout, "unclosed code fence in C") {
+		t.Errorf("json %q", jout)
+	}
+	// A clean export carries an empty array, not null.
+	code, jout, _ = run("--root", exportFixture, "--json", "export", "Anchor", "--out", filepath.Join(t.TempDir(), "c.md"))
+	if code != 0 || !strings.Contains(jout, `"warnings": []`) {
+		t.Errorf("json %q", jout)
+	}
+}

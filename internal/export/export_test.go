@@ -224,3 +224,40 @@ func TestSharedFenceScanner(t *testing.T) {
 		})
 	}
 }
+
+func TestUnclosedFenceIsClosedInTheOutput(t *testing.T) {
+	r := buildIn(t, "unclosed", "Map - U", 1, "")
+	md := r.Markdown
+	// Every later section survives: B, C, D and Sources are real headings.
+	for _, want := range []string{"\n## B\n", "\n## C\n", "\n## D\n", "\n## Sources\n", "- SB, lines 1-2"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("missing %q in:\n%s", want, md)
+		}
+	}
+	// The fence is closed right after the text, in the same container.
+	for _, want := range []string{"unclosed [[Y]]\n```\n\n## B", "  unclosed in a list [[Y]]\n  ```\n\n## D", "> unclosed in a quote\n> ```\n\n## Sources"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("missing %q in:\n%s", want, md)
+		}
+	}
+	want := []string{"unclosed code fence in A", "unclosed code fence in C", "unclosed code fence in D"}
+	if strings.Join(r.Warnings, "|") != strings.Join(want, "|") {
+		t.Errorf("warnings %v", r.Warnings)
+	}
+	if again := buildIn(t, "unclosed", "Map - U", 1, "").Markdown; again != md {
+		t.Error("rerun differs")
+	}
+}
+
+func TestUnclosedFenceInTheStartNote(t *testing.T) {
+	r := buildIn(t, "unclosed", "A", 0, "")
+	if !strings.HasSuffix(r.Markdown, "unclosed [[Y]]\n```\n") || len(r.Warnings) != 1 {
+		t.Errorf("%q %v", r.Markdown, r.Warnings)
+	}
+}
+
+func TestNoWarningForTheLinksSectionFenceOrClosedFence(t *testing.T) {
+	if r := build(t, "Map - Harbor", 1); len(r.Warnings) != 0 {
+		t.Errorf("warnings %v", r.Warnings)
+	}
+}
