@@ -9,9 +9,10 @@ ChartScribe itself, use [llms.txt](../llms.txt) instead.
 ## What ChartScribe is
 
 ChartScribe is a Go CLI, `cscribe`, for plain-text Zettelkasten collections. A
-collection has a `notes/` folder of Markdown files, one idea per file. The only
-implemented command besides `version` is `cscribe validate` (alias `lint`), which
-checks every rule of the note format without network access and without writing.
+collection has a `notes/` folder of Markdown files, one idea per file. The
+implemented commands besides `version` are `cscribe validate` (alias `lint`), which
+checks every rule of the note format without network access and without writing, and
+`cscribe init`, which writes tool configuration (see below).
 Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
 and are not implemented yet.
 
@@ -65,6 +66,13 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
 3. Fix every finding (`<note>: <message>` on stderr). `cscribe --json validate` gives the same findings as one
    JSON document; `--rule <name>` limits the output to a rule.
 4. Repeat until it exits 0.
+
+## Configuring the tools
+
+`cscribe init` prints the plan and writes nothing; `cscribe init --apply` writes the missing zk, Obsidian
+and Quartz files (`--tool zk|obsidian|quartz` limits it). Show the human the plan first. An existing file is
+replaced only with `--overwrite <path>` or `--overwrite all`, which you use only when the human asks. A rerun
+writes nothing. Details: [init contract](../specs/001-note-tooling/contracts/init-files.md).
 
 ## Boundaries
 

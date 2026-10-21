@@ -20,7 +20,7 @@ only writes formats it reads unchanged. Manual (planned): <https://wstein.github
 
 ## Status
 
-Pre-alpha. Implemented: `cscribe validate` (alias `lint`) and `cscribe version`; the other
+Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init` and `cscribe version`; the other
 commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 
 ## Commands
@@ -28,6 +28,7 @@ commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 ```text
 cscribe [--root DIR] [--json] validate [--rule NAME]...
 cscribe lint ...                 (alias of validate)
+cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--overwrite PATH|all]
 cscribe version
 ```
 
@@ -44,6 +45,14 @@ type = ["idea", "decision"]
 status = ["open", "done"]
 category = ["direction", "state"]
 ```
+
+`init` prints a plan for the zk, Obsidian and Quartz configuration files (one line per file: `write`,
+`exists (skipped)`, `differs (skipped)` or `overwrite`) and writes nothing. `--apply` writes the files that
+do not exist; an existing file stays untouched unless `--overwrite PATH` (relative to the root) or
+`--overwrite all` names it. `--tool` limits the set (default all three; `.cscribe.toml` is always written).
+A rerun plans nothing to write. The root is `--root`, else the nearest directory with a `notes/` folder,
+else the working directory. `init` writes files only and starts no tool; the file list is the
+[init contract](specs/001-note-tooling/contracts/init-files.md). The Quartz workflow is a proposal.
 
 The collection of the Anchorage workspace is checked with `cscribe --root chartroom validate`; the
 umbrella switches its `make chartroom-check` from `chartroom/scripts/check_notes.py` in a separate pull request.

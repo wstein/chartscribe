@@ -2,8 +2,9 @@
 
 > ChartScribe is a Go CLI, `cscribe`, for plain-text Zettelkasten note collections
 > (Markdown notes with `id`, `aliases` and `tags` frontmatter and `[[wikilinks]]`).
-> Today it validates a collection (`cscribe validate`, alias `lint`). It reads files
-> only: no network, no process start, no write.
+> Today it validates a collection (`cscribe validate`, alias `lint`; reads files
+> only: no network, no process start, no write) and writes tool configuration
+> (`cscribe init`, plan by default, `--apply` writes missing files only).
 
 Use this file to debug or investigate a ChartScribe problem. To help a human set up
 ChartScribe or write notes, read the agent guide instead. Contributors working inside
@@ -22,6 +23,7 @@ the exact command, the findings and the exit status.
 - [Agent guide](https://raw.githubusercontent.com/wstein/chartscribe/main/docs/agent-guide.md): setup, note format and the validate loop
 - [Specification](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/spec.md): scope, slices and requirements
 - [Validate rules](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/validate-rules.md): every rule name and the differences from the Python reference
+- [Init files](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/init-files.md): files `init` writes and the verified keys
 - [Validate output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/validate-output.md): human and JSON output, exit codes
 
 ## Code map
@@ -31,6 +33,7 @@ the exact command, the findings and the exit status.
 - `internal/note`: frontmatter subset parser, ids, wikilinks
 - `internal/collection`: collection root discovery, `.cscribe.toml`, loading `notes/*.md`
 - `internal/validate`: the rules and findings
+- `internal/initcmd`: the embedded `init` file set, plan and apply (symlink and overwrite guards)
 - `testdata`: fixture collections (a chartroom-shaped snapshot and one fixture per failing rule)
 
 ## Tests
