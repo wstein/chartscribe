@@ -1,11 +1,33 @@
 # Tasks: Note tooling
 
+## FR trace
+
+| FR | Tasks |
+| --- | --- |
+| 001 | T102-T109 |
+| 002 | T101b |
+| 003 | T104 |
+| 004 | T110 |
+| 005 | T109a |
+| 006, 007 | T202-T204 |
+| 008 | T301 |
+| 009 | T302, T303 |
+| 010 | T401, T401a, T402, T403 |
+| 011 | T205, T206 |
+| 012 | T101c |
+| 013 | T101 |
+| 014 | T101a |
+| 015 | T601, T602 |
+
 TDD order: in each group the test task comes first and fails before its implementation task.
 `[P]` marks tasks that can run in parallel.
 
 ## Slice 1 - validate
 
-- [ ] T101 Test: `internal/cli.Run` with `version` and an unknown command (exit 2); decide the TOML library.
+- [ ] T101 Test: `internal/cli.Run(ctx, version, args, stdout, stderr)` with `version` and an unknown command (exit 2) on a cobra root, one fresh tree per call; add cobra v1.10.2; decide the TOML library.
+- [ ] T101a Test: the agent hint appears in the root help and in every subcommand help (walk the command tree). Implement the hint. Write `llms.txt` and `docs/agent-guide.md` after `sheetmill/`.
+- [ ] T101c Test (FR-012): fails when `go.mod` or an import names a `zk-org` module or code starts a `zk` process (scan sources for `exec.Command("zk"`).
+- [ ] T101b Test: root discovery (FR-002): nearest directory with `notes/` from a subdirectory, `--root`, none found gives exit 3.
 - [ ] T102 Test: frontmatter parser table (flow list, block list, quoted, plain, single-quoted, comment, `[]`, unterminated, bad line). Implement `internal/note` parser.
 - [ ] T103 Test: id rules (14 digits, `-NNN`, calendar date, missing, duplicate). Implement.
 - [ ] T104 [P] Test and implement `field-unknown`, `list-type`, `tag-invalid`, `tag-count` (map without `status/`), vocabulary from `.cscribe.toml`.
@@ -14,6 +36,7 @@ TDD order: in each group the test task comes first and fails before its implemen
 - [ ] T107 Test and implement the map rules: `map-unlisted`, `map-multiple`, `map-category`, `map-duplicate`, `category-no-map`.
 - [ ] T108 [P] Test and implement `readme-link` (broken, outside the collection, external ignored).
 - [ ] T109 Test: the committed chartroom snapshot gives 0 findings; the five mutation probes each give one finding; compare with `check_notes.py` output on every failure fixture.
+- [ ] T109a Test (FR-005): validate on a read-only copy leaves the tree hash unchanged; `go list -deps ./internal/validate` contains neither `net` nor `os/exec`.
 - [ ] T110 Test (golden): human and JSON output, `--rule`, exit codes 0/1/2/3, `lint` alias. Implement `validate`.
 - [ ] T111 Docs: README command section, chartroom-check usage. (The umbrella switch is a separate PR there.)
 
@@ -36,8 +59,14 @@ TDD order: in each group the test task comes first and fails before its implemen
 ## Slice 4 - tracking
 
 - [ ] T401 Test: parse `gh issue list --json` output (fixtures); the `Chartroom: <id> <title>` link rule.
+- [ ] T401a Test: the query uses `--state all --limit 200`; 200 results is an error; `## Tracking` lines `- #<n> <title> (<state>) <url>`.
 - [ ] T402 Test: rewrite only the `## Tracking` section, body bytes elsewhere identical (hash); dry-run default; `--write`.
 - [ ] T403 Test: `gh` missing or failing gives exit 3 with a clear message. Implement with a runner interface.
+
+## Pages (separate PR)
+
+- [ ] T601 `docs/index.md` and a Hugo site configuration over `docs/`; local check by the owner (builds need approval).
+- [ ] T602 `.github/workflows/pages.yml` modelled on `sheetmill`: SHA-pinned actions, Hugo pinned with checksum, gofmt/vet/test before deploy, deploy on `main` only, least-privilege permissions, concurrency `pages`.
 
 ## Slice 5 - optional
 

@@ -16,7 +16,7 @@ ChartScribe is a Go CLI (`cscribe`) for plain-text Zettelkasten collections.
 configuration for the preferred tools (`init`) and generates issue-tracking sections
 from the `Chartroom: <id> <title>` lines. Everything file-based is native. [`zk`](https://github.com/zk-org/zk)
 is a recommended separate companion for complex queries; `cscribe` never starts it and
-only writes formats it reads unchanged. See [specs/001-note-tooling](specs/001-note-tooling/spec.md).
+only writes formats it reads unchanged. Manual (planned): <https://wstein.github.io/chartscribe/>. See [specs/001-note-tooling](specs/001-note-tooling/spec.md).
 
 ## Status
 
