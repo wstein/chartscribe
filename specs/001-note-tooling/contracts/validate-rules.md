@@ -60,10 +60,10 @@ Only frontmatter fields and the link lines of a map or of `README.md` change; th
 | --- | --- |
 | `id-invalid` | an id of exactly 14 digits with `-`, `:`, `_`, space or `T` between them that is a real date and time becomes the 14 digits, unless another note has it |
 | `list-type` | a scalar `tags` (one tag without space or comma) or `aliases` (one alias without comma) becomes a one-item list |
-| `tag-invalid` | a `type/`, `status/` or `category/` tag whose lower-case value is in the vocabulary is lower-cased; a leading `#` is dropped |
-| `tag-count` | exact duplicates (after the same normalisation) are removed |
+| `tag-invalid` | the value of a `type/`, `status/` or `category/` tag is lower-cased when the lower-case value is in the vocabulary; no other tag changes |
+| `tag-count` | a repeated `type/`, `status/` or `category/` tag (also after lower-casing) is removed; repeated free tags stay |
 | `name-duplicate` | an alias equal to its own title, or repeated in the same note, is removed |
-| `map-unlisted` | `- [[Title]]` is appended to the one map of the note's category, only when the note has exactly one category tag and exactly one map has it |
+| `map-unlisted` | `- [[Title]]` is added after the list of links of the one map of the note's category, only when the note has exactly one category tag, exactly one map has it, the map has exactly one list of `- [[...` lines, and every note's frontmatter parses |
 | `readme-link` | a broken relative link is rewritten when exactly one path matches after ignoring case, one component at a time; the `#anchor` stays |
 
 Not fixed, because no single value is certain or the fix needs a decision: `frontmatter`, `field-unknown`,

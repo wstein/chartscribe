@@ -67,8 +67,8 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
    JSON document; `--rule <name>` limits the output to a rule.
 4. Repeat until it exits 0.
 
-`cscribe validate --fix` plans the safe fixes (tag case and duplicates, scalar `tags`/`aliases`, a malformed id
-with one certain value, a note missing from the only map of its category, a README link that differs in case) and
+`cscribe validate --fix` plans the safe fixes (tag value case and repeated namespaced tags, scalar `tags`/`aliases`, a malformed id
+with one certain value, a note missing from the one list of the only map of its category, a README link that differs in case) and
 prints each exact edit; it writes nothing. Show the human the plan, then run `cscribe validate --fix --apply`. Only
 frontmatter and map or README link lines change, never a note body. Fixes that do not validate better are listed as
 refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`, ...) needs your judgement.
