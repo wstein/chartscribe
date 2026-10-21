@@ -1,0 +1,5 @@
+# Text files are LF in every checkout, so that shell scripts, workflow files and golden
+# outputs read the same on Windows. Fixtures keep their bytes (some hold CRLF or CR on purpose).
+* text=auto eol=lf
+*.sh text eol=lf
+testdata/** -text
