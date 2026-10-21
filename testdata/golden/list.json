@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "command": "list",
+  "ok": true,
+  "notes": [
+    {
+      "id": "20261021120000",
+      "title": "First note",
+      "path": "notes/First note.md",
+      "tags": [
+        "type/idea",
+        "status/open",
+        "category/direction",
+        "alpha"
+      ]
+    },
+    {
+      "id": "20261021120100",
+      "title": "Map - Direction",
+      "path": "notes/Map - Direction.md",
+      "tags": [
+        "type/map",
+        "category/direction"
+      ]
+    },
+    {
+      "id": "20261021120101",
+      "title": "Map - State",
+      "path": "notes/Map - State.md",
+      "tags": [
+        "type/map",
+        "category/state"
+      ]
+    },
+    {
+      "id": "20261021120001",
+      "title": "Second note",
+      "path": "notes/Second note.md",
+      "tags": [
+        "type/idea",
+        "status/open",
+        "category/state",
+        "alpha"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "command": "links",
+  "ok": true,
+  "note": {
+    "id": "20261021120001",
+    "title": "Second note",
+    "path": "notes/Second note.md",
+    "tags": [
+      "type/idea",
+      "status/open",
+      "category/state",
+      "alpha"
+    ]
+  },
+  "links": [
+    {
+      "target": "Ghost",
+      "resolved": false
+    }
+  ],
+  "unresolved": 1
+}
