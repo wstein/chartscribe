@@ -59,6 +59,7 @@ func LoadVocabulary(root string) (Vocabulary, error) {
 func parseConfig(text string, v *Vocabulary) error {
 	lines := strings.Split(text, "\n")
 	table := ""
+	seen := map[string]bool{}
 	for i := 0; i < len(lines); i++ {
 		lineNo := i + 1
 		line := strings.TrimSpace(stripComment(lines[i]))
@@ -86,6 +87,10 @@ func parseConfig(text string, v *Vocabulary) error {
 			i++
 			value += " " + strings.TrimSpace(stripComment(lines[i]))
 		}
+		if seen[key] {
+			return fmt.Errorf("line %d: duplicate key %q", lineNo, key)
+		}
+		seen[key] = true
 		var target *[]string
 		switch key {
 		case "type":
