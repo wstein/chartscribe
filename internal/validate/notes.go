@@ -38,7 +38,7 @@ func (c *checker) notes(files []collection.File) {
 	for _, f := range files {
 		title := f.Title()
 		if note.ForbiddenTitle.MatchString(title) {
-			c.add("title-char", f.Name, `forbidden character in the title (one of \ / : * ? " < > |)`)
+			c.add("title-char", f.Name, "forbidden character in the title (one of "+note.ForbiddenTitleChars+")")
 		}
 		fm, rawBody, err := note.Parse(f.Text)
 		if err != nil {

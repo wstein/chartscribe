@@ -43,7 +43,7 @@ func checkTitle(title string) error {
 		return errors.New("the title starts with a dot")
 	}
 	if note.ForbiddenTitle.MatchString(title) {
-		return errors.New(`forbidden character in the title (one of \ / : * ? " < > |)`)
+		return errors.New("forbidden character in the title (one of " + note.ForbiddenTitleChars + ")")
 	}
 	for _, r := range title {
 		if unicode.IsControl(r) {
@@ -61,8 +61,8 @@ func checkTitle(title string) error {
 func freeID(x *index.Index, t time.Time) string {
 	base := t.Format("20060102150405")
 	taken := map[string]bool{}
-	for _, n := range x.Notes {
-		taken[n.ID] = true
+	for _, id := range x.IDs {
+		taken[id] = true
 	}
 	id := base
 	for i := 1; taken[id]; i++ {
@@ -106,8 +106,18 @@ Exit status: 0 done, 2 usage error (including a refused title), 3 environment er
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
-			if _, taken := x.Find(title); taken {
-				return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("a note named %q already exists", title))
+			// Every file counts, also one that does not parse and one that differs only by case.
+			entries, err := os.ReadDir(notes)
+			if err != nil {
+				return failure(cmd, opts, exitEnv, "io", err)
+			}
+			for _, e := range entries {
+				if strings.EqualFold(e.Name(), title+".md") {
+					return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("notes/%s already exists", e.Name()))
+				}
+			}
+			if n, taken := x.ByName(title); taken {
+				return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("%q is already the title or an alias of %s", title, n.Path))
 			}
 			id := freeID(x, now())
 			path := filepath.Join(notes, title+".md")

@@ -147,6 +147,15 @@ func TestTitleRules(t *testing.T) {
 		writeFile(t, filepath.Join(root, "notes", "Bad: title.md"), string(data))
 		assertFinding(t, root, "title-char", "Bad: title.md")
 	})
+	t.Run("characters that cut a wikilink", func(t *testing.T) {
+		for _, c := range []string{"#", "[", "]", "^"} {
+			root := newFixture(t)
+			data, _ := os.ReadFile(filepath.Join(root, "notes", "First note.md"))
+			name := "Bad" + c + " title.md"
+			writeFile(t, filepath.Join(root, "notes", name), string(data))
+			assertFinding(t, root, "title-char", name)
+		}
+	})
 	t.Run("duplicate via alias", func(t *testing.T) {
 		root := newFixture(t)
 		writeNote(t, root, "Second note", "20261021120001", noteOpts{category: "state", links: []string{"First note"}, extra: "aliases: [\"First note\"]\n"})
@@ -154,6 +163,9 @@ func TestTitleRules(t *testing.T) {
 	})
 	t.Run("duplicate differing in case only", func(t *testing.T) {
 		root := newFixture(t)
+		if caseInsensitive(t, root) {
+			t.Skip("case-insensitive filesystem cannot hold names that differ only by case")
+		}
 		writeNote(t, root, "FIRST NOTE", "20261021120002")
 		writeMap(t, root, "Direction", "direction", "20261021120100", []string{"First note", "FIRST NOTE"})
 		assertFinding(t, root, "name-duplicate", "")

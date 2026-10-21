@@ -36,7 +36,7 @@ flow lists (`["a", "b"]`, `[a, b]`, `[]`) and block lists (`- item`), `#` commen
 | `list-type` | `aliases` (if present) or `tags` is not a list of strings; a missing `tags` counts |
 | `tag-invalid` | a `type/`, `status/` or `category/` tag has a value outside the vocabulary |
 | `tag-count` | not exactly one tag of a namespace; a note with `type/map` needs no `status/` tag |
-| `title-char` | the filename stem contains one of `\ / : * ? " < > \|` |
+| `title-char` | the filename stem contains one of `\ / : * ? " < > \| # [ ] ^` (the last four cut a wikilink target; a difference from the Python reference) |
 | `name-duplicate` | two titles or aliases are equal, case-insensitively (title against alias included) |
 | `source-missing` | a note that is not a map has no line `Source: <text>, lines A-B` |
 | `wikilink-unresolved` | a `[[target]]` in a body does not resolve to a title or alias (case-insensitive); the label (`\|`) and heading (`#`) parts are ignored for resolution |

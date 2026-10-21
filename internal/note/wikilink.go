@@ -7,8 +7,14 @@ import (
 	"strings"
 )
 
-// ForbiddenTitle matches a character that a note title (and so a file name) may not contain.
-var ForbiddenTitle = regexp.MustCompile(`[\\/:*?"<>|]`)
+// ForbiddenTitle matches a character that a note title may not contain: the
+// characters a file name cannot hold and those that cut a wikilink target
+// ([[a#b]] names the heading b of a), which would make the note unlinkable.
+// validate (title-char) and new share this one definition.
+var ForbiddenTitle = regexp.MustCompile(`[\\/:*?"<>|#\[\]^]`)
+
+// ForbiddenTitleChars lists the characters of ForbiddenTitle for messages.
+const ForbiddenTitleChars = `\ / : * ? " < > | # [ ] ^`
 
 var (
 	wikilink   = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
