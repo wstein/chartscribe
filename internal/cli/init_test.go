@@ -11,6 +11,13 @@ import (
 	"testing"
 )
 
+func setVersion(t *testing.T, v string) {
+	t.Helper()
+	old := buildVersion
+	buildVersion = func() string { return v }
+	t.Cleanup(func() { buildVersion = old })
+}
+
 func tree(t *testing.T, root string) string {
 	t.Helper()
 	var out []string
@@ -25,12 +32,13 @@ func tree(t *testing.T, root string) string {
 }
 
 func TestInitPlanGolden(t *testing.T) {
+	setVersion(t, "")
 	root := t.TempDir()
 	code, out, errOut := run("--root", root, "init")
 	if code != 0 || errOut != "" {
 		t.Fatalf("exit %d stderr %q", code, errOut)
 	}
-	golden(t, "init-plan.stdout", out)
+	golden(t, "init-plan.stdout", strings.ReplaceAll(out, root, "<root>"))
 	if got := tree(t, root); got != "" {
 		t.Errorf("plan wrote files:\n%s", got)
 	}
@@ -38,7 +46,7 @@ func TestInitPlanGolden(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	golden(t, "init-plan.json", out)
+	golden(t, "init-plan.json", strings.ReplaceAll(out, root, "<root>"))
 	var doc struct {
 		Version int
 		Command string
@@ -50,12 +58,13 @@ func TestInitPlanGolden(t *testing.T) {
 }
 
 func TestInitApplyGoldenAndRerun(t *testing.T) {
+	setVersion(t, "v1.2.3")
 	root := t.TempDir()
 	code, out, errOut := run("--root", root, "init", "--apply")
 	if code != 0 || errOut != "" {
 		t.Fatalf("exit %d stderr %q", code, errOut)
 	}
-	golden(t, "init-apply.stdout", out)
+	golden(t, "init-apply.stdout", strings.ReplaceAll(out, root, "<root>"))
 	if n := len(strings.Split(tree(t, root), "\n")); n != 13 {
 		t.Errorf("wrote %d files", n)
 	}
@@ -69,7 +78,7 @@ func TestInitApplyGoldenAndRerun(t *testing.T) {
 			t.Errorf("%v rerun output:\n%s", args, out)
 		}
 	}
-	golden(t, "init-rerun.stdout", out)
+	golden(t, "init-rerun.stdout", strings.ReplaceAll(out, root, "<root>"))
 	if tree(t, root) != before {
 		t.Error("rerun changed the tree")
 	}
@@ -207,5 +216,66 @@ func TestInitDefaultsToCwdOrNearestCollection(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(empty, ".zk", "config.toml")); err != nil {
 		t.Errorf("not written in the working directory: %v", err)
+	}
+}
+
+func TestInitPinsTheBinaryVersion(t *testing.T) {
+	read := func(root string) string {
+		b, _ := os.ReadFile(filepath.Join(root, ".github", "workflows", "pages.yml"))
+		return string(b)
+	}
+	setVersion(t, "v1.2.3")
+	root := t.TempDir()
+	_, out, _ := run("--root", root, "init", "--tool", "quartz", "--apply")
+	if !strings.Contains(read(root), "CSCRIBE_VERSION: v1.2.3\n") || !strings.Contains(out, "the workflow installs cscribe v1.2.3") {
+		t.Errorf("known version:\n%s\n%s", read(root), out)
+	}
+	setVersion(t, "")
+	root = t.TempDir()
+	_, out, _ = run("--root", root, "init", "--tool", "quartz", "--apply")
+	if !strings.Contains(read(root), "CSCRIBE_VERSION: REPLACE_WITH_CSCRIBE_VERSION\n") || !strings.Contains(out, "carries REPLACE_WITH_CSCRIBE_VERSION") {
+		t.Errorf("unknown version:\n%s\n%s", read(root), out)
+	}
+	_, out, _ = run("--root", root, "--json", "init", "--tool", "quartz")
+	if !strings.Contains(out, `"workflowVersion": "REPLACE_WITH_CSCRIBE_VERSION"`) {
+		t.Errorf("json: %s", out)
+	}
+	_, out, _ = run("--root", root, "init", "--tool", "zk")
+	if strings.Contains(out, "workflow") {
+		t.Errorf("zk-only output mentions the workflow:\n%s", out)
+	}
+}
+
+func TestPickVersion(t *testing.T) {
+	for _, tt := range []struct{ ld, mod, rev, want string }{
+		{"v1.0.0", "v0.9.0", "abc", "v1.0.0"},
+		{"dev", "v0.9.0", "abc", "v0.9.0"},
+		{"dev", "(devel)", "abc123", "abc123"},
+		{"", "", "", ""},
+		{"dev", "(devel)", "", ""},
+	} {
+		if got := pickVersion(tt.ld, tt.mod, tt.rev); got != tt.want {
+			t.Errorf("%+v = %q", tt, got)
+		}
+	}
+}
+
+func TestInitPrintsTheResolvedRoot(t *testing.T) {
+	root := t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	_ = os.MkdirAll(filepath.Join(root, "notes", "sub"), 0o755)
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	_ = os.Chdir(filepath.Join(root, "notes", "sub"))
+	_, out, _ := run("init", "--tool", "zk")
+	if !strings.HasPrefix(out, "init: root "+root+"\n") {
+		t.Errorf("human output:\n%s", out)
+	}
+	_, out, _ = run("--json", "init", "--tool", "zk")
+	var doc initDocument
+	if err := json.Unmarshal([]byte(out), &doc); err != nil || doc.Root != root {
+		t.Errorf("json root %q (%v), want %q", doc.Root, err, root)
 	}
 }

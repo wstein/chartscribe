@@ -15,7 +15,7 @@ import (
 func initCollection(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	files := initcmd.Files(nil, "demo")
+	files := initcmd.Files(nil, "demo", "v1.2.3")
 	es, err := initcmd.Plan(root, files, nil)
 	if err != nil {
 		t.Fatal(err)

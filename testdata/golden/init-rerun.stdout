@@ -1,3 +1,4 @@
+init: root <root>
 exists (skipped)   .cscribe.toml
 exists (skipped)   .zk/config.toml
 exists (skipped)   .zk/templates/note.md
@@ -12,3 +13,4 @@ exists (skipped)   .quartz/settings.json
 exists (skipped)   .quartz/index.md
 exists (skipped)   .github/workflows/pages.yml
 init: nothing to write (13 skipped)
+init: the workflow installs cscribe v1.2.3

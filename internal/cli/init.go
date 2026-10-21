@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,9 +16,40 @@ import (
 )
 
 type initDocument struct {
-	Version int             `json:"version"`
-	Command string          `json:"command"`
-	Files   []initcmd.Entry `json:"files"`
+	Version         int             `json:"version"`
+	Command         string          `json:"command"`
+	Root            string          `json:"root"`
+	WorkflowVersion string          `json:"workflowVersion,omitempty"`
+	Files           []initcmd.Entry `json:"files"`
+}
+
+const workflowPath = ".github/workflows/pages.yml"
+
+// buildVersion is the version of the running binary that the Quartz workflow
+// installs; tests replace it.
+var buildVersion = func() string {
+	info, _ := debug.ReadBuildInfo()
+	if info == nil {
+		return pickVersion(Version, "", "")
+	}
+	rev := ""
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			rev = s.Value
+		}
+	}
+	return pickVersion(Version, info.Main.Version, rev)
+}
+
+// pickVersion prefers a release version set by ldflags, then the module
+// version, then the VCS revision; "" means this build knows none.
+func pickVersion(ldflags, module, revision string) string {
+	for _, v := range []string{ldflags, module} {
+		if v != "" && v != "dev" && v != "(devel)" {
+			return v
+		}
+	}
+	return revision
 }
 
 func initCommand(opts *globalOptions) *cobra.Command {
@@ -54,7 +86,7 @@ Exit status: 0 done, 2 usage error, 3 environment error.`,
 				}
 				return failure(cmd, opts, exitEnv, kind, err)
 			}
-			files := initcmd.Files(sel, filepath.Base(root))
+			files := initcmd.Files(sel, filepath.Base(root), buildVersion())
 			entries, err := initcmd.Plan(root, files, overwrite)
 			if errors.Is(err, initcmd.ErrUnknownOverwrite) {
 				return failure(cmd, opts, exitUsage, "usage", err)
@@ -67,7 +99,7 @@ Exit status: 0 done, 2 usage error, 3 environment error.`,
 					return failure(cmd, opts, exitEnv, "io", err)
 				}
 			}
-			if err := printInit(cmd, opts, entries, apply); err != nil {
+			if err := printInit(cmd, opts, root, files, entries, apply); err != nil {
 				return runtimeFailure{err}
 			}
 			return nil
@@ -104,11 +136,18 @@ func initRoot(explicit string) (string, error) {
 	return root, err
 }
 
-func printInit(cmd *cobra.Command, opts *globalOptions, entries []initcmd.Entry, apply bool) error {
+func printInit(cmd *cobra.Command, opts *globalOptions, root string, files []initcmd.File, entries []initcmd.Entry, apply bool) error {
+	pinned := ""
+	for _, f := range files {
+		if f.Path == workflowPath {
+			pinned = workflowPin(f.Content)
+		}
+	}
 	if opts.json {
-		return writeJSON(cmd.OutOrStdout(), initDocument{Version: 1, Command: "init", Files: entries})
+		return writeJSON(cmd.OutOrStdout(), initDocument{Version: 1, Command: "init", Root: root, WorkflowVersion: pinned, Files: entries})
 	}
 	var b strings.Builder
+	fmt.Fprintf(&b, "init: root %s\n", root)
 	todo, skipped := 0, 0
 	for _, e := range entries {
 		fmt.Fprintf(&b, "%-18s %s\n", e.Action, e.Path)
@@ -126,6 +165,20 @@ func printInit(cmd *cobra.Command, opts *globalOptions, entries []initcmd.Entry,
 	default:
 		fmt.Fprintf(&b, "init: plan only, %d files to write (%d skipped); rerun with --apply\n", todo, skipped)
 	}
+	switch pinned {
+	case "":
+	case initcmd.VersionPlaceholder:
+		fmt.Fprintf(&b, "init: the workflow carries %s (this build has no version); set it before enabling Pages\n", pinned)
+	default:
+		fmt.Fprintf(&b, "init: the workflow installs cscribe %s\n", pinned)
+	}
 	_, err := cmd.OutOrStdout().Write([]byte(b.String()))
 	return err
+}
+
+// workflowPin reads the version out of the generated workflow.
+func workflowPin(workflow string) string {
+	_, rest, _ := strings.Cut(workflow, "CSCRIBE_VERSION: ")
+	v, _, _ := strings.Cut(rest, "\n")
+	return v
 }

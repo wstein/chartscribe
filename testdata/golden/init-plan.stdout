@@ -1,3 +1,4 @@
+init: root <root>
 write              .cscribe.toml
 write              .zk/config.toml
 write              .zk/templates/note.md
@@ -12,3 +13,4 @@ write              .quartz/settings.json
 write              .quartz/index.md
 write              .github/workflows/pages.yml
 init: plan only, 13 files to write (0 skipped); rerun with --apply
+init: the workflow carries REPLACE_WITH_CSCRIBE_VERSION (this build has no version); set it before enabling Pages
