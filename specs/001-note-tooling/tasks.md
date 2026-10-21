@@ -61,6 +61,7 @@ TDD order: in each group the test task comes first and fails before its implemen
 - [x] T701 Test and implement `internal/export` (map order, depth, anchors, plain text for links outside the export, Sources section, deterministic) and the `index` accessors.
 - [x] T702 Test and implement `cscribe export` (`--out`, `--force`, `--depth`, `--format md`, `--json`, exit codes, nothing else written); golden files.
 - [x] T703 Docs: README, agent guide, llms.txt, [contracts/export.md](contracts/export.md). Format decision: md only (HTML is left to Hugo, Quartz or pandoc).
+- [x] T704 Review fixes: code masking, Links targets, heading shift, `--out` guards (notes tree, symlinks, directories), `--title`, unique-anchor tests.
 
 ## Slice 4 - tracking
 
