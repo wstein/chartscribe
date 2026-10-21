@@ -17,6 +17,14 @@ import (
 // -ldflags "-X github.com/wstein/chartscribe/internal/cli.Version=<version>".
 var Version = "dev"
 
+const agentHints = `
+Are you an AI? Use these resources ONLY IF your task specifically asks you to:
+  Help a human understand, set up or use ChartScribe:
+    https://raw.githubusercontent.com/wstein/chartscribe/main/docs/agent-guide.md
+  Debug or investigate a problem with ChartScribe:
+    https://raw.githubusercontent.com/wstein/chartscribe/main/llms.txt
+`
+
 // Exit codes (see specs/001-note-tooling/contracts/validate-output.md).
 const (
 	exitOK       = 0
@@ -92,6 +100,14 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 	root.SetErr(stderr)
 	root.SetIn(strings.NewReader(""))
 	root.CompletionOptions.DisableDefaultCmd = true
+	// Only the root help carries the agent hint; subcommand help stays plain.
+	defaultHelp := root.HelpFunc()
+	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		defaultHelp(cmd, args)
+		if cmd == root {
+			fmt.Fprint(cmd.OutOrStdout(), agentHints)
+		}
+	})
 	root.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Print the cscribe version",
