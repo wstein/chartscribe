@@ -66,6 +66,7 @@ func TestConfigErrors(t *testing.T) {
 		{"unterminated array", "[tags]\ntype = [\"a\"\n", "unterminated"},
 		{"unterminated string", "[tags]\ntype = [\"a]\n", "string"},
 		{"empty value", "[tags]\ntype = [\"\"]\n", "empty"},
+		{"duplicate key", "[tags]\ntype = [\"a\"]\ntype = [\"b\"]\n", "duplicate"},
 		{"bad line", "[tags]\nnonsense\n", "line 2"},
 	}
 	for _, tt := range tests {
