@@ -14,7 +14,9 @@ document. It only reads notes and writes only `--out`.
 - Title: `# <title of NOTE>`, or `--title TEXT`. Every other note is a heading `#`x(1+level) with its title
   (level 6 at most). Body headings move so that the shallowest one is one level below the note's own heading
   (body `# H1` under `## Note` becomes `###`; level 6 at most). The body of NOTE follows its title.
-- Code: fenced blocks (opened by 3 or more backticks or tildes, closed by the same character at least as long),
+- Code: fenced blocks (found by the scanner `validate` and `tracking` share, `note.CodeLines`: container prefixes
+  of quotes and list items, the backtick info-string rule; a fence still open at the end of the note runs to the
+  end, so the rest of that note is copied as code and no link in it is rewritten),
   indented code (4 spaces or a tab after a blank line, not inside a list) and inline code spans (a backtick run
   closed by a run of the same length, within one line) are copied as they are: no wikilink in them is a member,
   rewritten or reported, and a `#` line in them is no heading.
