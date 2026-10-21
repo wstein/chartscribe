@@ -1,0 +1,6 @@
+[
+  {"number": 12, "title": "Chartroom: 20261021120000 First note", "state": "OPEN", "url": "https://github.com/o/r/issues/12", "body": ""},
+  {"number": 7, "title": "Fix the ghost link", "state": "CLOSED", "url": "https://github.com/o/r/issues/7", "body": "Context.\r\nChartroom: 20261021120000 First note\r\nChartroom: 20261021120100-001 Other\n"},
+  {"number": 3, "title": "Mentions Chartroom: 20261021120000 inline only", "state": "OPEN", "url": "https://github.com/o/r/issues/3", "body": "see Chartroom: 20261021120000 in text"},
+  {"number": 4, "title": "Multi\nline", "state": "open", "url": "https://github.com/o/r/issues/4", "body": "Chartroom: 2026 short"}
+]
