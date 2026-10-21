@@ -103,6 +103,37 @@ umbrella switches its `make chartroom-check` from `chartroom/scripts/check_notes
 `.cscribe.toml` is read by a small built-in parser (a `[tags]` table of string arrays), so the module
 depends on cobra only.
 
+## Releases and install
+
+Releases are built by CI from a version tag and listed under
+[Releases](https://github.com/wstein/chartscribe/releases). Pick the archive for your system
+(`cscribe_<version>_<os>_<arch>`; `.zip` on Windows, `.tar.gz` elsewhere):
+
+| System | Archive |
+| --- | --- |
+| Linux x86-64 / ARM 64-bit | `linux_amd64` / `linux_arm64` |
+| macOS Apple silicon / Intel | `darwin_arm64` / `darwin_amd64` |
+| Windows x86-64 / ARM 64-bit | `windows_amd64` / `windows_arm64` |
+| Raspberry Pi 3, 4, 5 and Zero 2 W with a 64-bit OS | `linux_arm64` |
+| Raspberry Pi 2 and later with a 32-bit OS (check with `uname -m`: `armv7l`) | `linux_armv7` |
+| Raspberry Pi 1, Zero and Zero W (`armv6l`) | `linux_armv6` |
+| FreeBSD, OpenBSD, NetBSD (amd64, arm64); Linux riscv64, ppc64le, s390x, loong64; illumos amd64 | `<os>_<arch>`; built and header-checked, not run by CI |
+
+Verify a download in the directory with the archives and `SHA256SUMS`, then check where it was built:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 --check
+gh attestation verify cscribe_0.1.0_linux_amd64.tar.gz --repo wstein/chartscribe
+```
+
+Or build from source with Go: `go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.0`.
+
+The binaries are not signed with a certificate or notarized. A browser-downloaded binary on
+macOS carries a quarantine flag and Gatekeeper refuses it until you run `xattr -d com.apple.quarantine cscribe`;
+a file fetched with `curl` or built with `go install` is unaffected. On Windows, SmartScreen may warn
+about the unrecognised download ("More info", then "Run anyway"). The checksum and the attestation
+are the proof of origin. See [docs/releasing.md](docs/releasing.md).
+
 ## Design
 
 The design notes are not public yet.
