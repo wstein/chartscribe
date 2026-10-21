@@ -39,15 +39,16 @@ cscribe, LICENSE, README.md, llms.txt and agent-guide.md.
 
 - Tier 1 (run natively on a GitHub runner before release): linux/amd64, linux/arm64,
   darwin/arm64, darwin/amd64, windows/amd64, windows/arm64.
-- Raspberry Pi (32-bit OS; run under qemu-user before release): linux_armv7 (Pi 2 and
+- Raspberry Pi (32-bit OS), run under qemu-user before release: linux_armv7 (Pi 2 and
   later) and linux_armv6 (Pi 1 and Zero). Pi 3, 4 and 5 with a 64-bit OS use linux_arm64.
-- Tier 2 (cross-built, reproducible, header-checked, not run): freebsd, openbsd and netbsd
-  on amd64 and arm64; linux on riscv64, ppc64le, s390x and loong64; illumos/amd64.
+- Also run under qemu-user before release: linux on riscv64, ppc64le, s390x and loong64.
+- Cross-built, reproducible and header-checked, not run: freebsd, openbsd and netbsd on
+  amd64 and arm64; illumos/amd64.
 
 Verify a download in the directory that holds the archives and SHA256SUMS:
 
-    sha256sum --check --ignore-missing SHA256SUMS
-    # macOS, for one archive: grep ' ARCHIVE\$' SHA256SUMS | shasum -a 256 --check
+    sha256sum --check --ignore-missing SHA256SUMS                       # Linux
+    grep ' ARCHIVE\$' SHA256SUMS | shasum -a 256 --check               # macOS, one archive
     gh attestation verify ARCHIVE --repo wstein/chartscribe
 
 then extract and run \`cscribe version\`, which prints \`cscribe $tag\`.

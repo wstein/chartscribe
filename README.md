@@ -117,12 +117,14 @@ Releases are built by CI from a version tag and listed under
 | Raspberry Pi 3, 4, 5 and Zero 2 W with a 64-bit OS | `linux_arm64` |
 | Raspberry Pi 2 and later with a 32-bit OS (check with `uname -m`: `armv7l`) | `linux_armv7` |
 | Raspberry Pi 1, Zero and Zero W (`armv6l`) | `linux_armv6` |
-| FreeBSD, OpenBSD, NetBSD (amd64, arm64); Linux riscv64, ppc64le, s390x, loong64; illumos amd64 | `<os>_<arch>`; built and header-checked, not run by CI |
+| Linux riscv64, ppc64le, s390x, loong64 | `linux_<arch>`; run under qemu-user by the release workflow |
+| FreeBSD, OpenBSD, NetBSD (amd64, arm64); illumos amd64 | `<os>_<arch>`; built and header-checked, not run by CI |
 
 Verify a download in the directory with the archives and `SHA256SUMS`, then check where it was built:
 
 ```sh
-sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 --check
+sha256sum --check --ignore-missing SHA256SUMS                                  # Linux
+grep ' cscribe_0.1.0_darwin_arm64.tar.gz$' SHA256SUMS | shasum -a 256 --check   # macOS, one archive
 gh attestation verify cscribe_0.1.0_linux_amd64.tar.gz --repo wstein/chartscribe
 ```
 
