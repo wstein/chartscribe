@@ -7,7 +7,7 @@ All findings are errors; there are no warnings in slice 1.
 ## Collection
 
 - Notes are `notes/*.md` (not recursive). The optional `README.md` at the collection root is checked only by `readme-*`.
-- Vocabulary: `.cscribe.toml` (optional) sets the allowed values:
+- Vocabulary: `.cscribe.toml` (optional; a duplicate key or an unknown table or key is an environment error) sets the allowed values:
 
   ```toml
   [tags]
@@ -61,5 +61,5 @@ after the `Source:` line and ends at the next `## ` heading or at the end of the
 
 A note linked several times from one map counts once for `map-multiple` (the reference reports it as in more than one map).
 
-Single-quoted scalars, plain flow items, `[]` and block list items without indentation are accepted (Obsidian and other YAML writers produce them; the reference reports `frontmatter` or `id-invalid` for them), and the `## Tracking` section is skipped. The parity test records each difference in `testdata/validate/diff`. Everything
+Single-quoted scalars, plain flow items and block list items without indentation are accepted (Obsidian and other YAML writers produce them; the reference reports `frontmatter` or `id-invalid` for them), and the `## Tracking` section is skipped. The parity test records each difference in `testdata/validate/diff`. Everything
 else is the reference behaviour, including its quirks, until a fixture says otherwise.
