@@ -1,0 +1,14 @@
+write              .cscribe.toml
+write              .zk/config.toml
+write              .zk/templates/note.md
+write              .zk/.gitignore
+write              templates/Note.md
+write              .obsidian/app.json
+write              .obsidian/core-plugins.json
+write              .obsidian/templates.json
+write              .obsidian/types.json
+write              .obsidian/.gitignore
+write              .quartz/settings.json
+write              .quartz/index.md
+write              .github/workflows/pages.yml
+init: plan only, 13 files to write (0 skipped); rerun with --apply

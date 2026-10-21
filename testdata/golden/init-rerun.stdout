@@ -1,0 +1,14 @@
+exists (skipped)   .cscribe.toml
+exists (skipped)   .zk/config.toml
+exists (skipped)   .zk/templates/note.md
+exists (skipped)   .zk/.gitignore
+exists (skipped)   templates/Note.md
+exists (skipped)   .obsidian/app.json
+exists (skipped)   .obsidian/core-plugins.json
+exists (skipped)   .obsidian/templates.json
+exists (skipped)   .obsidian/types.json
+exists (skipped)   .obsidian/.gitignore
+exists (skipped)   .quartz/settings.json
+exists (skipped)   .quartz/index.md
+exists (skipped)   .github/workflows/pages.yml
+init: nothing to write (13 skipped)

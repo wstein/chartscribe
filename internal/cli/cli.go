@@ -132,5 +132,6 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 		},
 	})
 	root.AddCommand(validateCommand(opts))
+	root.AddCommand(initCommand(opts))
 	return root
 }

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "command": "init",
+  "files": [
+    {
+      "path": ".cscribe.toml",
+      "action": "write"
+    },
+    {
+      "path": ".zk/config.toml",
+      "action": "write"
+    },
+    {
+      "path": ".zk/templates/note.md",
+      "action": "write"
+    },
+    {
+      "path": ".zk/.gitignore",
+      "action": "write"
+    },
+    {
+      "path": "templates/Note.md",
+      "action": "write"
+    },
+    {
+      "path": ".obsidian/app.json",
+      "action": "write"
+    },
+    {
+      "path": ".obsidian/core-plugins.json",
+      "action": "write"
+    },
+    {
+      "path": ".obsidian/templates.json",
+      "action": "write"
+    },
+    {
+      "path": ".obsidian/types.json",
+      "action": "write"
+    },
+    {
+      "path": ".obsidian/.gitignore",
+      "action": "write"
+    },
+    {
+      "path": ".quartz/settings.json",
+      "action": "write"
+    },
+    {
+      "path": ".quartz/index.md",
+      "action": "write"
+    },
+    {
+      "path": ".github/workflows/pages.yml",
+      "action": "write"
+    }
+  ]
+}
