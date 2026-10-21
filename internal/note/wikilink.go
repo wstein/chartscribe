@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// ForbiddenTitle matches a character that a note title (and so a file name) may not contain.
+var ForbiddenTitle = regexp.MustCompile(`[\\/:*?"<>|]`)
+
 var (
 	wikilink   = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 	sourceLine = regexp.MustCompile(`(?m)^Source: .+, lines [0-9]+-[0-9]+$`)
