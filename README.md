@@ -20,7 +20,7 @@ only writes formats it reads unchanged. Manual (planned): <https://wstein.github
 
 ## Status
 
-Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init` and `cscribe version`; the other
+Pre-alpha. Implemented: `cscribe validate` (alias `lint`), `cscribe init`, `new`, `list`, `tags`, `links`, `backlinks` and `version`; the other
 commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 
 ## Commands
@@ -29,6 +29,11 @@ commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 cscribe [--root DIR] [--json] validate [--rule NAME]...
 cscribe lint ...                 (alias of validate)
 cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--overwrite PATH|all]
+cscribe [--root DIR] [--json] new TITLE [--tag TAG]...
+cscribe [--root DIR] [--json] list [--tag TAG]
+cscribe [--root DIR] [--json] tags
+cscribe [--root DIR] [--json] links NOTE
+cscribe [--root DIR] [--json] backlinks NOTE
 cscribe version
 ```
 
@@ -53,6 +58,18 @@ do not exist; an existing file stays untouched unless `--overwrite PATH` (relati
 A rerun plans nothing to write. The root is `--root`, else the nearest directory with a `notes/` folder,
 else the working directory. `init` writes files only and starts no tool; the file list is the
 [init contract](specs/001-note-tooling/contracts/init-files.md). The Quartz workflow is a proposal.
+
+`new TITLE` writes `notes/TITLE.md` (creating `notes/` when missing) with the id from the clock
+(`YYYYMMDDHHMMSS`, `-001`, `-002`... when a note already has it), empty `aliases`, the `--tag` tags, a `## Links`
+heading and an empty `Source:` line, and prints the path. It exits 2 for an existing file or title, an empty
+title or a forbidden character (`\ / : * ? " < > |`, control characters, a leading dot). The note passes `validate`
+once you fill the tags and the `Source: <text>, lines A-B` line and list it in a map.
+`list` prints `id`, title, path and tags per note (tab separated; `--tag` filters); `tags` prints each tag and its
+note count; `links NOTE` prints the wikilinks of a note and `backlinks NOTE` the notes that link to it. NOTE is a
+title, alias, file name or id; links resolve like `validate` resolves them (title or alias, any case, `|label` and
+`#heading` ignored) and unresolved targets are printed as `unresolved`. These commands only read files, skip
+notes whose frontmatter does not parse (with a warning on stderr) and exit 2 for an unknown NOTE.
+`--json` output is specified in [query output](specs/001-note-tooling/contracts/query-output.md).
 
 The collection of the Anchorage workspace is checked with `cscribe --root chartroom validate`; the
 umbrella switches its `make chartroom-check` from `chartroom/scripts/check_notes.py` in a separate pull request.

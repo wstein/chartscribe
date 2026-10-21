@@ -51,10 +51,10 @@ TDD order: in each group the test task comes first and fails before its implemen
 
 ## Slice 3 - new, list, tags, links, backlinks
 
-- [ ] T301 Test and implement `new` (filename = title, id from an injected clock, `-NNN` on collision, refuses existing file and forbidden characters).
-- [ ] T302 [P] Test and implement `list` (tag filter, JSON record `id`, `title`, `path`, `tags`) and `tags`.
-- [ ] T303 [P] Test and implement `links` and `backlinks` (alias resolution, unresolved targets reported).
-- [ ] T304 Golden files for JSON output; update README.
+- [x] T301 Test and implement `new` (filename = title, id from an injected clock, `-NNN` on collision, refuses existing file and forbidden characters).
+- [x] T302 [P] Test and implement `list` (tag filter, JSON record `id`, `title`, `path`, `tags`) and `tags`.
+- [x] T303 [P] Test and implement `links` and `backlinks` (alias resolution, unresolved targets reported).
+- [x] T304 Golden files for JSON output; update README.
 
 ## Slice 4 - tracking
 
