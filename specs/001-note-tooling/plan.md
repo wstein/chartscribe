@@ -2,7 +2,8 @@
 
 Go, module `github.com/wstein/chartscribe`, pinned version in `.go-version`. Few direct
 dependencies: `github.com/spf13/cobra` (v1.10.2, as `sourcesteward` and `sheetmill`; model:
-`sourcesteward/internal/cli/root.go`) and a TOML library for `.cscribe.toml` (decide in T101); the standard
+`sourcesteward/internal/cli/root.go`); `.cscribe.toml` is read by a small hand parser
+(decided in slice 1: a `[tags]` table of string arrays needs no library); the standard
 library covers the frontmatter subset and JSON.
 
 ## Layout
