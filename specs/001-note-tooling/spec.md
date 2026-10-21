@@ -36,7 +36,7 @@ Owner decisions (2026-10-21), taken as given:
    approach proves insufficient. Linter and Templater are optional suggestions; `init` never
    installs a plugin.
 4. **Slices**: 1 `validate`, 2 `init`, 3 `new`/`list`/`links`/`backlinks`, 4 `tracking`,
-   5 optional `--fix` and an MCP server.
+   5 optional `--fix`. MCP: deferred; scope to be decided after slices 1-4 are in use.
 
 Open points for the owner are listed at the end.
 
@@ -80,11 +80,10 @@ per note (`--state all` because the default lists open issues only; 200 matches 
 and rewrites only the generated `## Tracking` section, which shows each issue with its state; dry-run by default,
 `--write` applies. `gh` missing or not logged in is an environment error (exit 3); the other commands never need `gh`.
 
-### US5 - Repair mechanical problems and offer tools to agents (P3, slice 5, optional)
+### US5 - Repair mechanical problems (P3, slice 5, optional)
 
 `validate --fix` repairs only safe mechanical findings (missing `id`, tag normalisation to the
-collection style, field order), never prose, and prints a plan unless `--write` is given. An MCP
-server over stdio exposes the read commands. Both are optional and may be dropped.
+collection style, field order), never prose, and prints a plan unless `--write` is given. Optional and may be dropped.
 
 ## Requirements
 
@@ -123,10 +122,9 @@ GitHub Pages is enabled for the repository (build type workflow, <https://wstein
 
 ## Obsidian: what config files can and cannot do
 
-Researched from the Obsidian documentation and the format of its `.obsidian/` files as known
-from the sources; **nothing here was verified against a running Obsidian** (no network and no
-Obsidian in the authoring environment). Task T201 verifies each key in Obsidian before `init`
-ships.
+Checked online on 2026-10-21 (details and sources in [contracts/init-files.md](contracts/init-files.md)): the Obsidian
+settings and their behaviour are in the official help; the key names and file shapes of `.obsidian/*.json` are
+not documented officially and were confirmed from real vaults on GitHub, not from a running Obsidian.
 
 Config can set:
 
@@ -170,4 +168,4 @@ Hence the gate is `cscribe validate`. Obsidian's Properties editor rewrites fron
 1. Whether the tag vocabulary may be built in as the default (FR-003 assumes: file when present, chartroom vocabulary otherwise).
 2. Whether `init` may later merge keys into an existing JSON config instead of skipping it (this spec: skip and report).
 3. How the Quartz workflow applies the config settings (patch step or a full replacement `quartz.config.ts` for the pinned version); decided in the Pages PR, see the init contract.
-4. Whether slice 5 (`--fix`, MCP) is wanted.
+4. Whether slice 5 (`--fix`) is wanted. MCP is deferred until slices 1-4 are in use.

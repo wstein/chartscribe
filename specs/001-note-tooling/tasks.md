@@ -42,7 +42,7 @@ TDD order: in each group the test task comes first and fails before its implemen
 
 ## Slice 2 - init
 
-- [ ] T201 Verify by hand in Obsidian and with zk 0.15.7 every key of [contracts/init-files.md](contracts/init-files.md); record results in the contract; fix the proposal where wrong.
+- [x] T201 Verified online on 2026-10-21 (sources and gaps in [contracts/init-files.md](contracts/init-files.md#verification)); the contract is corrected where it differed (zk `exclude`, not `ignore`).
 - [ ] T202 Test: plan lists every file as `write` in an empty directory and writes nothing. Implement plan.
 - [ ] T203 Test: `--apply` writes the missing files; a rerun plans nothing; a pre-existing file stays byte-identical; `--overwrite PATH` replaces only that file. Implement.
 - [ ] T204 [P] Per-tool tests (`--tool`), `--json` output, no file outside the root.
@@ -68,7 +68,6 @@ TDD order: in each group the test task comes first and fails before its implemen
 - [ ] T601 `docs/index.md` and a Hugo site configuration over `docs/`; local check by the owner (builds need approval).
 - [ ] T602 `.github/workflows/pages.yml` modelled on `sheetmill`: SHA-pinned actions, Hugo pinned with checksum, gofmt/vet/test before deploy, deploy on `main` only, least-privilege permissions, concurrency `pages`.
 
-## Slice 5 - optional
+## Slice 5 - optional (MCP deferred until slices 1-4 are in use)
 
 - [ ] T501 `validate --fix` for safe findings (plan by default), body hash unchanged.
-- [ ] T502 MCP server over stdio with the read commands.
