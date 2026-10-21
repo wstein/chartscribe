@@ -58,10 +58,10 @@ TDD order: in each group the test task comes first and fails before its implemen
 
 ## Slice 4 - tracking
 
-- [ ] T401 Test: parse `gh issue list --json` output (fixtures); the `Chartroom: <id> <title>` link rule.
-- [ ] T401a Test: the query uses `--state all --limit 200`; 200 results is an error; `## Tracking` lines `- #<n> <title> (<state>) <url>`.
-- [ ] T402 Test: rewrite only the `## Tracking` section, body bytes elsewhere identical (hash); dry-run default; `--write`.
-- [ ] T403 Test: `gh` missing or failing gives exit 3 with a clear message. Implement with a runner interface.
+- [x] T401 Test: parse `gh issue list --json` output (fixtures); the `Chartroom: <id> <title>` link rule.
+- [x] T401a Test: the query uses `--state all --limit 200`; 200 results is an error; `## Tracking` lines `- #<n> <title> (<state>) <url>`.
+- [x] T402 Test: rewrite only the `## Tracking` section, body bytes elsewhere identical (hash); dry-run default; `--write`.
+- [x] T403 Test: `gh` missing or failing gives exit 3 with a clear message. Implement with a runner interface.
 
 ## Pages (separate PR)
 

@@ -75,8 +75,8 @@ placeholders the user must fill.
 
 ### US4 - Keep a Tracking section current (P2, slice 4)
 
-`cscribe tracking` runs `gh issue list --state all --limit 200 --search "Chartroom: <id>" --json number,title,state,url`
-per note (`--state all` because the default lists open issues only; 200 matches is an error, not a silent cut)
+`cscribe tracking` runs `gh issue list --state all --limit 200 --json number,title,state,url,body` once and links issues to
+notes by the `Chartroom: <id>` line ([tracking output](contracts/tracking-output.md); `--state all` because the default lists open issues only; 200 matches is an error, not a silent cut)
 and rewrites only the generated `## Tracking` section, which shows each issue with its state; dry-run by default,
 `--write` applies. `gh` missing or not logged in is an environment error (exit 3); the other commands never need `gh`.
 
