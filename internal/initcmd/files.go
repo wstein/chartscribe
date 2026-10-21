@@ -42,7 +42,7 @@ var versionOK = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
 // WorkflowVersion is what the workflow pins: version if it is a plausible
 // module version or revision, else VersionPlaceholder.
 func WorkflowVersion(version string) string {
-	if versionOK.MatchString(version) && version != "(devel)" {
+	if versionOK.MatchString(version) && version != "(devel)" && !strings.HasSuffix(version, "+dirty") {
 		return version
 	}
 	return VersionPlaceholder
@@ -178,7 +178,7 @@ open(path, "w", encoding="utf-8").write(t)
 // pagesWorkflow is a proposal (contract: Quartz). Action versions are pinned by
 // SHA; cscribe is installed at version, the one of the binary that ran init.
 func pagesWorkflow(version string) string {
-	indented := "            " + strings.ReplaceAll(strings.TrimSuffix(quartzPatch, "\n"), "\n", "\n            ") + "\n"
+	indented := "          " + strings.ReplaceAll(strings.TrimSuffix(quartzPatch, "\n"), "\n", "\n          ") + "\n"
 	return strings.NewReplacer("@VERSION@", version, "@PATCH@", indented, "@QUARTZ@", QuartzCommit).Replace(pagesTemplate)
 }
 

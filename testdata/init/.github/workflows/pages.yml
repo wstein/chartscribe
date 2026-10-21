@@ -49,21 +49,21 @@ jobs:
           cp -r notes quartz/content/notes
           cp .quartz/index.md quartz/content/index.md
           python3 - <<'PY'
-            import json, re, sys
-            s = json.load(open(".quartz/settings.json", encoding="utf-8"))
-            path = "quartz/quartz.config.ts"
-            t = open(path, encoding="utf-8").read()
-            def patch(pattern, repl):
-                global t
-                if len(re.findall(pattern, t)) != 1:
-                    sys.exit("quartz.config.ts: %r does not match exactly once" % pattern)
-                t = re.sub(pattern, lambda m: repl, t)
-            if "<" in s["baseUrl"]:
-                sys.exit("set baseUrl in .quartz/settings.json: it still holds the placeholder")
-            patch(r'pageTitle: "[^"]*"', "pageTitle: " + json.dumps(s["pageTitle"]))
-            patch(r'baseUrl: "[^"]*"', "baseUrl: " + json.dumps(s["baseUrl"]))
-            patch(r'analytics: \{[^}]*\}', "analytics: null")
-            open(path, "w", encoding="utf-8").write(t)
+          import json, re, sys
+          s = json.load(open(".quartz/settings.json", encoding="utf-8"))
+          path = "quartz/quartz.config.ts"
+          t = open(path, encoding="utf-8").read()
+          def patch(pattern, repl):
+              global t
+              if len(re.findall(pattern, t)) != 1:
+                  sys.exit("quartz.config.ts: %r does not match exactly once" % pattern)
+              t = re.sub(pattern, lambda m: repl, t)
+          if "<" in s["baseUrl"]:
+              sys.exit("set baseUrl in .quartz/settings.json: it still holds the placeholder")
+          patch(r'pageTitle: "[^"]*"', "pageTitle: " + json.dumps(s["pageTitle"]))
+          patch(r'baseUrl: "[^"]*"', "baseUrl: " + json.dumps(s["baseUrl"]))
+          patch(r'analytics: \{[^}]*\}', "analytics: null")
+          open(path, "w", encoding="utf-8").write(t)
           PY
       - name: Build
         working-directory: quartz

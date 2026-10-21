@@ -252,6 +252,7 @@ func TestPickVersion(t *testing.T) {
 		{"dev", "v0.9.0", "abc", "v0.9.0"},
 		{"dev", "(devel)", "abc123", "abc123"},
 		{"", "", "", ""},
+		{"dev", "v0.0.0-20261021120000-0123456789ab+dirty", "abc", ""},
 		{"dev", "(devel)", "", ""},
 	} {
 		if got := pickVersion(tt.ld, tt.mod, tt.rev); got != tt.want {

