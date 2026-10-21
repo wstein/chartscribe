@@ -48,7 +48,9 @@ summary: `fix: <K> edits in <F> files planned; findings <M> -> <A>; --apply writ
 ```
 
 `mode` is `plan` or `apply`; `findings_after` is the predicted count in plan mode and the real one after `--apply`.
-`old` is empty for an inserted line. A write error or a file that changed since the plan is an environment error (`io`).
+`old` is empty for an inserted line. `--apply` verifies the whole result and checks every target (unchanged since the plan, regular file inside the collection,
+directory writable) before the first write. A write error or a file that changed since the plan is an environment error
+(`io`) whose message names the files written, restored (put back from the plan after a later write failed) and not written.
 
 ## Exit codes
 
