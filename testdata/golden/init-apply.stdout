@@ -1,3 +1,4 @@
+init: root <root>
 write              .cscribe.toml
 write              .zk/config.toml
 write              .zk/templates/note.md
@@ -12,3 +13,4 @@ write              .quartz/settings.json
 write              .quartz/index.md
 write              .github/workflows/pages.yml
 init: wrote 13 files (0 skipped)
+init: the workflow installs cscribe v1.2.3

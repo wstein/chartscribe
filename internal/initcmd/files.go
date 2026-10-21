@@ -6,6 +6,7 @@ package initcmd
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 )
 
@@ -32,10 +33,26 @@ type File struct {
 // QuartzCommit is the pinned Quartz 4.5.2 commit.
 const QuartzCommit = "4923affa7722dfc751f1074348e6dad214fe0c08"
 
+// VersionPlaceholder is written into the workflow when the running binary has
+// no version; the workflow step fails while it is present.
+const VersionPlaceholder = "REPLACE_WITH_CSCRIBE_VERSION"
+
+var versionOK = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
+
+// WorkflowVersion is what the workflow pins: version if it is a plausible
+// module version or revision, else VersionPlaceholder.
+func WorkflowVersion(version string) string {
+	if versionOK.MatchString(version) && version != "(devel)" {
+		return version
+	}
+	return VersionPlaceholder
+}
+
 // Files returns the files for the selected tools (nil or empty: all), in a
 // fixed order and without duplicates. .cscribe.toml comes first and is
-// written under every tool. title is the collection name for the Quartz files.
-func Files(tools []Tool, title string) []File {
+// written under every tool. title is the collection name for the Quartz files;
+// version is the cscribe version the Quartz workflow installs (see WorkflowVersion).
+func Files(tools []Tool, title, version string) []File {
 	if len(tools) == 0 {
 		tools = AllTools
 	}
@@ -62,7 +79,7 @@ func Files(tools []Tool, title string) []File {
 			files = append(files,
 				File{".quartz/settings.json", quartzSettings(title)},
 				File{".quartz/index.md", "---\ntitle: " + jsonString(title) + "\n---\n\nWelcome to " + singleLine(title) + ".\n"},
-				File{".github/workflows/pages.yml", pagesWorkflow})
+				File{".github/workflows/pages.yml", pagesWorkflow(WorkflowVersion(version))})
 		}
 	}
 	return files
@@ -138,8 +155,34 @@ const obsidianApp = `{
 }
 `
 
-// pagesWorkflow is a proposal (contract: Quartz). Action versions are pinned by SHA.
-const pagesWorkflow = `# Proposal: publishes the notes with Quartz 4.5.2 to GitHub Pages.
+// quartzPatch applies .quartz/settings.json to the pinned quartz.config.ts. Each
+// pattern must match exactly once, replacements are literal, and the baseUrl
+// placeholder stops the build.
+const quartzPatch = `import json, re, sys
+s = json.load(open(".quartz/settings.json", encoding="utf-8"))
+path = "quartz/quartz.config.ts"
+t = open(path, encoding="utf-8").read()
+def patch(pattern, repl):
+    global t
+    if len(re.findall(pattern, t)) != 1:
+        sys.exit("quartz.config.ts: %r does not match exactly once" % pattern)
+    t = re.sub(pattern, lambda m: repl, t)
+if "<" in s["baseUrl"]:
+    sys.exit("set baseUrl in .quartz/settings.json: it still holds the placeholder")
+patch(r'pageTitle: "[^"]*"', "pageTitle: " + json.dumps(s["pageTitle"]))
+patch(r'baseUrl: "[^"]*"', "baseUrl: " + json.dumps(s["baseUrl"]))
+patch(r'analytics: \{[^}]*\}', "analytics: null")
+open(path, "w", encoding="utf-8").write(t)
+`
+
+// pagesWorkflow is a proposal (contract: Quartz). Action versions are pinned by
+// SHA; cscribe is installed at version, the one of the binary that ran init.
+func pagesWorkflow(version string) string {
+	indented := "            " + strings.ReplaceAll(strings.TrimSuffix(quartzPatch, "\n"), "\n", "\n            ") + "\n"
+	return strings.NewReplacer("@VERSION@", version, "@PATCH@", indented, "@QUARTZ@", QuartzCommit).Replace(pagesTemplate)
+}
+
+const pagesTemplate = `# Proposal: publishes the notes with Quartz 4.5.2 to GitHub Pages.
 # Set baseUrl in .quartz/settings.json and enable Pages (source: GitHub Actions) first.
 name: pages
 on:
@@ -163,11 +206,21 @@ jobs:
         with:
           go-version: stable
       - name: Validate the notes
-        run: go install github.com/wstein/chartscribe/cmd/cscribe@main && "$(go env GOPATH)/bin/cscribe" validate
+        env:
+          CSCRIBE_VERSION: @VERSION@
+        run: |
+          set -euo pipefail
+          case "$CSCRIBE_VERSION" in
+            REPLACE_WITH_*)
+              echo "::error::Set CSCRIBE_VERSION in .github/workflows/pages.yml to a cscribe version or commit"
+              exit 1;;
+          esac
+          go install "github.com/wstein/chartscribe/cmd/cscribe@$CSCRIBE_VERSION"
+          "$(go env GOPATH)/bin/cscribe" validate
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jackyzha0/quartz
-          ref: ` + QuartzCommit + `
+          ref: @QUARTZ@
           path: quartz
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -179,16 +232,8 @@ jobs:
           rm -rf quartz/content && mkdir quartz/content
           cp -r notes quartz/content/notes
           cp .quartz/index.md quartz/content/index.md
-          node -e '
-            const fs = require("fs");
-            const s = JSON.parse(fs.readFileSync(".quartz/settings.json", "utf8"));
-            const f = "quartz/quartz.config.ts";
-            let t = fs.readFileSync(f, "utf8");
-            t = t.replace(/pageTitle: "[^"]*"/, "pageTitle: " + JSON.stringify(s.pageTitle))
-                 .replace(/baseUrl: "[^"]*"/, "baseUrl: " + JSON.stringify(s.baseUrl))
-                 .replace(/analytics: \{[^}]*\}/, "analytics: null");
-            fs.writeFileSync(f, t);
-          '
+          python3 - <<'PY'
+@PATCH@          PY
       - name: Build
         working-directory: quartz
         run: npm ci && npx quartz build

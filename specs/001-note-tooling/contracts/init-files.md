@@ -4,8 +4,9 @@
 cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--overwrite PATH|all]
 ```
 
-- Without `--apply`: print the plan, one line per file: `write`, `exists (skipped)` or `differs (skipped)`; write nothing. Exit 0.
+- Without `--apply`: print the plan, one line per file: `write`, `exists (skipped)`, `differs (skipped)` or, when `--overwrite` names a differing file, `overwrite`; write nothing. Exit 0.
 - `--apply`: write every file that does not exist. An existing file is never touched unless `--overwrite PATH` names it (or `all`).
+- Root: `--root`, else the nearest directory with a `notes/` folder, else the working directory (an empty directory works); `init` does not create `notes/`.
 - No `--tool`: all three. Paths are relative to the collection root. Directories are created as needed.
 - A rerun after `--apply` plans nothing to write. `--json` prints `{"version":1,"command":"init","files":[{"path","action"}]}`.
 - `init` writes files only: it starts no tool and installs no plugin. Existing JSON config is not merged (open point).
@@ -68,7 +69,7 @@ static site. Only what lives in the notes repository is written:
 | --- | --- |
 | `.quartz/settings.json` | the values the spike needed: `pageTitle` (collection name), `baseUrl` (host plus subpath, no protocol, e.g. `<owner>.github.io/<repo>`), `analytics: null`; no ignore patterns are needed because only `notes/` is copied (Quartz already ignores `private`, `templates`, `.obsidian` by default) |
 | `.quartz/index.md` | home page with `title:` frontmatter, instead of the README (whose repo-relative links are dead in Quartz) |
-| `.github/workflows/pages.yml` | builds with Quartz at a pinned commit (4.5.2 is `4923affa7722dfc751f1074348e6dad214fe0c08`): run `cscribe validate` first (Quartz silently renders an unresolved wikilink as a dead link), check out Quartz, copy `notes/` and `index.md` into its `content/`, apply the settings, build, deploy to GitHub Pages. Action versions are pinned by SHA when the file is written |
+| `.github/workflows/pages.yml` | builds with Quartz at a pinned commit (4.5.2 is `4923affa7722dfc751f1074348e6dad214fe0c08`): run `cscribe validate` first (Quartz silently renders an unresolved wikilink as a dead link), check out Quartz, copy `notes/` and `index.md` into its `content/`, apply the settings, build, deploy to GitHub Pages. Action versions are pinned by SHA when the file is written; `cscribe` is installed at the version of the binary that ran `init` (module version, else VCS revision), or the placeholder `REPLACE_WITH_CSCRIBE_VERSION` that fails the step until replaced; `go-version: stable` floats |
 
 How the settings reach `quartz.config.ts` (a patch step or a full replacement file for the pinned
 version) is open; the spike used the default configuration. The workflow is a proposal until

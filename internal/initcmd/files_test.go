@@ -35,7 +35,7 @@ func TestFilesPerTool(t *testing.T) {
 		{[]Tool{Quartz, ZK, ZK}, ".cscribe.toml .zk/config.toml .zk/templates/note.md .zk/.gitignore .quartz/settings.json .quartz/index.md .github/workflows/pages.yml"},
 	}
 	for _, tt := range tests {
-		got := strings.Join(paths(Files(tt.tools, "demo")), " ")
+		got := strings.Join(paths(Files(tt.tools, "demo", "")), " ")
 		if got != tt.want {
 			t.Errorf("Files(%v):\n got %s\nwant %s", tt.tools, got, tt.want)
 		}
@@ -43,7 +43,7 @@ func TestFilesPerTool(t *testing.T) {
 }
 
 func TestFilesGolden(t *testing.T) {
-	for _, f := range Files(nil, "demo") {
+	for _, f := range Files(nil, "demo", "") {
 		path := filepath.Join("..", "..", "testdata", "init", filepath.FromSlash(f.Path))
 		if *update {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -66,7 +66,7 @@ func TestFilesGolden(t *testing.T) {
 
 func content(t *testing.T, path string) string {
 	t.Helper()
-	for _, f := range Files(nil, "demo") {
+	for _, f := range Files(nil, "demo", "") {
 		if f.Path == path {
 			return f.Content
 		}
@@ -142,7 +142,7 @@ func TestContractKeys(t *testing.T) {
 
 func TestQuartzTitleIsData(t *testing.T) {
 	var s map[string]any
-	for _, f := range Files([]Tool{Quartz}, "a\"b\\c\n---\nx: y") {
+	for _, f := range Files([]Tool{Quartz}, "a\"b\\c\n---\nx: y", "") {
 		switch f.Path {
 		case ".quartz/settings.json":
 			mustJSON(t, f.Content, &s)

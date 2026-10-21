@@ -1,6 +1,8 @@
 {
   "version": 1,
   "command": "init",
+  "root": "<root>",
+  "workflowVersion": "REPLACE_WITH_CSCRIBE_VERSION",
   "files": [
     {
       "path": ".cscribe.toml",
