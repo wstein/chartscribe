@@ -33,6 +33,8 @@ func TestParseValues(t *testing.T) {
 		{"block list with blank and comment lines", fm("tags:", "  - a", "", "# c", "  - b"), "tags", ListOf("a", "b")},
 		{"non string json item", fm(`tags: ["a", 1]`), "tags", Value{List: []string{"a", "1"}, IsList: true, NonString: true}},
 		{"quoted scalar tags", fm(`tags: "type/idea" #`), "tags", Scalar("type/idea")},
+		{"non ascii key", fm("naïve: x"), "naïve", Scalar("x")},
+		{"nested json list in a block list", fm("tags:", `  - ["a"]`), "tags", Value{List: []string{`["a"]`}, IsList: true, NonString: true}},
 		{"list items under a scalar are ignored", fm("id: 1", "  - x"), "id", Scalar("1")},
 	}
 	for _, tt := range tests {
@@ -78,6 +80,7 @@ func TestParseErrors(t *testing.T) {
 		{"bad json string", fm(`id: "abc`), "invalid"},
 		{"bad flow list", fm(`tags: ["a", `), "flow list"},
 		{"empty flow item", fm(`tags: [a,,b]`), "flow list"},
+		{"flow item in a block list is not JSON", fm("tags:", "  - [a]"), "invalid"},
 		{"trailing text after quoted", fm(`id: "a" b`), "invalid"},
 	}
 	for _, tt := range tests {

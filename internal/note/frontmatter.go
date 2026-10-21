@@ -45,7 +45,7 @@ func (f Frontmatter) Get(key string) (Value, bool) {
 
 var (
 	itemLine    = regexp.MustCompile(`^\s*-\s+(.*)$`)
-	pairLine    = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$`)
+	pairLine    = regexp.MustCompile(`^([A-Za-z_][\p{L}\p{N}_-]*):\s*(.*)$`)
 	trailingCmt = regexp.MustCompile(`\s+#.*$`)
 )
 
@@ -74,14 +74,20 @@ func Parse(text string) (Frontmatter, string, error) {
 		}
 		if m := itemLine.FindStringSubmatch(line); m != nil {
 			if cur, ok := f.values[key]; key != "" && ok && cur.IsList {
-				item, err := parseScalarOrList(m[1])
-				if err != nil {
-					return Frontmatter{}, "", err
-				}
-				if item.IsList {
+				raw := strings.TrimSpace(m[1])
+				if strings.HasPrefix(raw, "[") {
+					// As in the reference, an item starting with [ must be JSON; it is not a string.
+					var nested []any
+					if err := json.Unmarshal([]byte(raw), &nested); err != nil {
+						return Frontmatter{}, "", fmt.Errorf("invalid list item %s", raw)
+					}
 					cur.NonString = true
-					cur.List = append(cur.List, "["+strings.Join(item.List, ", ")+"]")
+					cur.List = append(cur.List, raw)
 				} else {
+					item, err := parseScalarOrList(raw)
+					if err != nil {
+						return Frontmatter{}, "", err
+					}
 					cur.List = append(cur.List, item.Text)
 				}
 				f.values[key] = cur
