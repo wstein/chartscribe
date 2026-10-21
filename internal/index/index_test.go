@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/wstein/chartscribe/internal/validate"
 )
 
 func collectionOf(t *testing.T, files map[string]string) string {
@@ -101,5 +103,45 @@ func TestTagCounts(t *testing.T) {
 	want := []TagCount{{"type/idea", 1}, {"x", 2}}
 	if got := x.Tags(); !reflect.DeepEqual(got, want) {
 		t.Errorf("tags = %v, want %v", got, want)
+	}
+}
+
+// The resolver of index and the wikilink-unresolved rule of validate agree on
+// every fixture collection.
+func TestResolverAgreesWithValidate(t *testing.T) {
+	var roots []string
+	for _, kind := range []string{"pass", "fail", "diff"} {
+		dirs, _ := filepath.Glob(filepath.Join("..", "..", "testdata", "validate", kind, "*"))
+		roots = append(roots, dirs...)
+	}
+	roots = append(roots, filepath.Join("..", "..", "testdata", "validate", "chartroom"))
+	for _, root := range roots {
+		t.Run(root, func(t *testing.T) {
+			res, err := validate.Run(root)
+			if err != nil {
+				t.Skip(err)
+			}
+			want := map[string]bool{}
+			for _, f := range res.Findings {
+				if f.Rule == "wikilink-unresolved" {
+					want[f.Note+" "+f.Message] = true
+				}
+			}
+			x, err := Load(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[string]bool{}
+			for _, n := range x.Notes {
+				for _, l := range x.Links(n) {
+					if l.To == nil {
+						got[n.Name+" wikilink [["+l.Target+"]] does not resolve to a note title or alias"] = true
+					}
+				}
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("index %v, validate %v", got, want)
+			}
+		})
 	}
 }

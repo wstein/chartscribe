@@ -47,7 +47,7 @@ Body text with a [[wikilink]] to another note by title or alias.
 Source: IDEAS_NOTES.md §1. Direction, lines 1-5
 ```
 
-- The file is `notes/<Title>.md`; the filename is the title and contains none of `\ / : * ? " < > |`.
+- The file is `notes/<Title>.md`; the filename is the title and contains none of `\ / : * ? " < > | # [ ] ^`.
 - Frontmatter has only `id` (14 digits `YYYYMMDDHHMMSS`, a valid date, optional `-NNN`, unique),
   `aliases` (optional list) and `tags` (a list). Block lists and plain, quoted and single-quoted values are accepted.
 - Tags carry exactly one `type/`, one `status/` and one `category/` value from the vocabulary; a map

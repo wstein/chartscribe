@@ -90,6 +90,9 @@ func TestNewRefuses(t *testing.T) {
 		{"empty", " "},
 		{"control", "a\nb"},
 		{"hidden", ".hidden"},
+		{"hash", "a#b"},
+		{"bracket", "a[b"},
+		{"caret", "a^b"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,5 +132,34 @@ func TestNewCreatesNotesFolderAndPassesValidate(t *testing.T) {
 	code, out, errOut := run("--root", root, "validate")
 	if code != 0 {
 		t.Errorf("validate: code %d, out %s, err %s", code, out, errOut)
+	}
+}
+
+func TestNewMessagesAndUnparsableNotes(t *testing.T) {
+	fixedClock(t, "20261021093015")
+	root := emptyCollection(t)
+	notes := filepath.Join(root, "notes")
+	os.WriteFile(filepath.Join(notes, "Broken.md"), []byte("---\nid: 20261021093015\nbad line\n---\n"), 0o644)
+	run("--root", root, "new", "Plain")
+	tests := []struct{ title, want string }{
+		{"a#b", "forbidden character"},
+		{"BROKEN", "notes/Broken.md already exists"}, // a note that does not parse still counts, by file name
+		{"PLAIN", "already exists"},
+	}
+	for _, tt := range tests {
+		code, _, errOut := run("--root", root, "new", tt.title)
+		if code != 2 || !strings.Contains(errOut, tt.want) {
+			t.Errorf("%q: code %d, stderr %q, want %q", tt.title, code, errOut, tt.want)
+		}
+	}
+	// The id of the note that does not parse is taken too.
+	run("--root", root, "new", "Next")
+	data, _ := os.ReadFile(filepath.Join(notes, "Next.md"))
+	if !strings.Contains(string(data), "id: 20261021093015-002\n") {
+		t.Errorf("note = %q", data)
+	}
+	// A title that equals an id is a fine title unless the name is taken.
+	if code, _, errOut := run("--root", root, "new", "20261021093015"); code != 0 {
+		t.Errorf("id-like title: code %d, stderr %q", code, errOut)
 	}
 }

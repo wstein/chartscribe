@@ -62,7 +62,7 @@ else the working directory. `init` writes files only and starts no tool; the fil
 `new TITLE` writes `notes/TITLE.md` (creating `notes/` when missing) with the id from the clock
 (`YYYYMMDDHHMMSS`, `-001`, `-002`... when a note already has it), empty `aliases`, the `--tag` tags, a `## Links`
 heading and an empty `Source:` line, and prints the path. It exits 2 for an existing file or title, an empty
-title or a forbidden character (`\ / : * ? " < > |`, control characters, a leading dot). The note passes `validate`
+title or a forbidden character (`\ / : * ? " < > | # [ ] ^`, control characters, a leading dot). The note passes `validate`
 once you fill the tags and the `Source: <text>, lines A-B` line and list it in a map.
 `list` prints `id`, title, path and tags per note (tab separated; `--tag` filters); `tags` prints each tag and its
 note count; `links NOTE` prints the wikilinks of a note and `backlinks NOTE` the notes that link to it. NOTE is a

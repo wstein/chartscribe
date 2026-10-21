@@ -6,6 +6,7 @@
 package index
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 
@@ -28,8 +29,11 @@ type Note struct {
 type Index struct {
 	Notes   []Note
 	Skipped []string // file names whose frontmatter did not parse (validate reports them)
+	IDs     []string // the ids of the notes, also of the skipped ones where an id line can be read
 	byName  map[string]int
 }
+
+var idLine = regexp.MustCompile(`(?m)^id:[ \t]*"?([^"\s]+)`)
 
 // Link is one wikilink of a note; To is nil when the target does not resolve.
 type Link struct {
@@ -54,6 +58,9 @@ func Load(root string) (*Index, error) {
 		fm, body, err := note.Parse(f.Text)
 		if err != nil {
 			x.Skipped = append(x.Skipped, f.Name)
+			if m := idLine.FindStringSubmatch(f.Text); m != nil {
+				x.IDs = append(x.IDs, m[1])
+			}
 			continue
 		}
 		n := Note{Title: f.Title(), Name: f.Name, Path: "notes/" + f.Name, Tags: []string{}, Aliases: []string{}, body: note.StripTracking(body)}
@@ -67,6 +74,7 @@ func Load(root string) (*Index, error) {
 			n.Aliases = append(n.Aliases, v.List...)
 		}
 		x.Notes = append(x.Notes, n)
+		x.IDs = append(x.IDs, n.ID)
 	}
 	// As validate resolves names, a later note wins a duplicated title or alias.
 	for i, n := range x.Notes {
@@ -76,6 +84,15 @@ func Load(root string) (*Index, error) {
 		}
 	}
 	return x, nil
+}
+
+// ByName returns the note whose title or alias is name, ignoring case.
+func (x *Index) ByName(name string) (Note, bool) {
+	i, ok := x.byName[strings.ToLower(strings.TrimSpace(name))]
+	if !ok {
+		return Note{}, false
+	}
+	return x.Notes[i], true
 }
 
 // Find returns the note an argument names: a title or alias (any case), a file
