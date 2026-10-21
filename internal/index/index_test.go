@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/wstein/chartscribe/internal/validate"
@@ -143,5 +144,26 @@ func TestResolverAgreesWithValidate(t *testing.T) {
 				t.Errorf("index %v, validate %v", got, want)
 			}
 		})
+	}
+}
+
+func TestResolveAndMap(t *testing.T) {
+	x, err := Load(filepath.Join("..", "..", "testdata", "export", "basic"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, ok := x.Resolve("Hook|the label#Details")
+	if !ok || n.Title != "Anchor" {
+		t.Fatalf("Resolve alias: %v %v", n.Title, ok)
+	}
+	if _, ok := x.Resolve("Nowhere"); ok {
+		t.Error("Resolve found a missing note")
+	}
+	m, _ := x.Find("Map - Harbor")
+	if !m.IsMap() || n.IsMap() {
+		t.Error("IsMap wrong")
+	}
+	if !strings.Contains(n.Body(), "An anchor is held") {
+		t.Error("Body")
 	}
 }
