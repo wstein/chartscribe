@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "command": "validate",
+  "ok": false,
+  "notes": 4,
+  "findings": [
+    {
+      "rule": "map-category",
+      "note": "Second note.md",
+      "message": "category \"state\" differs from its map's category \"direction\""
+    }
+  ]
+}

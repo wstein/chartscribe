@@ -59,9 +59,18 @@ func Run(ctx context.Context, version string, args []string, stdout, stderr io.W
 	}
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
+		if isUsage(err) && jsonUsageError(root, args, stdout, err) {
+			return exitUsage
+		}
 		return exitStatus(stderr, err)
 	}
 	return exitOK
+}
+
+func isUsage(err error) bool {
+	var coded exitError
+	var failure runtimeFailure
+	return !errors.As(err, &coded) && !errors.As(err, &failure)
 }
 
 func exitStatus(stderr io.Writer, err error) int {
@@ -99,6 +108,9 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.SetIn(strings.NewReader(""))
+	opts := &globalOptions{}
+	root.PersistentFlags().StringVar(&opts.root, "root", "", "Collection root (default: the nearest directory with a notes/ folder)")
+	root.PersistentFlags().BoolVar(&opts.json, "json", false, "Write one JSON document to stdout")
 	root.CompletionOptions.DisableDefaultCmd = true
 	// Only the root help carries the agent hint; subcommand help stays plain.
 	defaultHelp := root.HelpFunc()
@@ -119,5 +131,6 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 			return nil
 		},
 	})
+	root.AddCommand(validateCommand(opts))
 	return root
 }

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "command": "validate",
+  "ok": false,
+  "notes": 4,
+  "findings": [
+    {
+      "rule": "id-duplicate",
+      "note": "",
+      "message": "duplicate id 20261021120000: First note.md, Second note.md"
+    }
+  ]
+}
