@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "command": "export",
+  "ok": true,
+  "format": "md",
+  "depth": 2,
+  "start": {
+    "id": "20261021130000",
+    "title": "Map - Harbor",
+    "path": "notes/Map - Harbor.md",
+    "tags": [
+      "type/map",
+      "category/direction"
+    ]
+  },
+  "notes": [
+    {
+      "id": "20261021130000",
+      "title": "Map - Harbor",
+      "path": "notes/Map - Harbor.md",
+      "level": 1
+    },
+    {
+      "id": "20261021130001",
+      "title": "Anchor",
+      "path": "notes/Anchor.md",
+      "level": 2
+    },
+    {
+      "id": "20261021130004",
+      "title": "Lighthouse",
+      "path": "notes/Lighthouse.md",
+      "level": 3
+    },
+    {
+      "id": "20261021130002",
+      "title": "Chain",
+      "path": "notes/Chain.md",
+      "level": 2
+    },
+    {
+      "id": "20261021130003",
+      "title": "Buoy",
+      "path": "notes/Buoy.md",
+      "level": 2
+    }
+  ],
+  "unresolved": [
+    {
+      "note": "Anchor",
+      "target": "Missing note"
+    }
+  ]
+}
