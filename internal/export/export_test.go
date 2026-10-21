@@ -192,3 +192,35 @@ func TestMapTextSpans(t *testing.T) {
 		}
 	}
 }
+
+func TestSharedFenceScanner(t *testing.T) {
+	tests := []struct {
+		name, body string
+		targets    []string
+		code       []string // lines that must be kept as code
+	}{
+		{"unclosed fence runs to the end", "[[A]]\n\n```\n[[B]]\nmore [[C]]\n", []string{"A"}, []string{"```", "[[B]]", "more [[C]]"}},
+		{"fence in a list item", "- item\n\n  ```\n  [[B]]\n  ```\n\n[[A]]\n", []string{"A"}, []string{"  [[B]]"}},
+		{"fence in a blockquote", "> ```\n> [[B]]\n> ```\n\n[[A]]\n", []string{"A"}, []string{"> [[B]]"}},
+		{"backtick info string is no fence", "``` a`b\n[[A]]\n", []string{"A"}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := parse(tt.body)
+			if strings.Join(p.targets, ",") != strings.Join(tt.targets, ",") {
+				t.Errorf("targets %v, want %v", p.targets, tt.targets)
+			}
+			code := map[string]bool{}
+			for _, l := range p.lines {
+				if l.kind == kCode {
+					code[l.text] = true
+				}
+			}
+			for _, c := range tt.code {
+				if !code[c] {
+					t.Errorf("%q not kept as code: %v", c, p.lines)
+				}
+			}
+		})
+	}
+}

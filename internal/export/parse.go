@@ -5,6 +5,8 @@ package export
 import (
 	"regexp"
 	"strings"
+
+	"github.com/wstein/chartscribe/internal/note"
 )
 
 type kind int
@@ -32,20 +34,16 @@ type parsed struct {
 }
 
 var (
-	fenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
-	atx       = regexp.MustCompile(`^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*$`)
-	source    = regexp.MustCompile(`^Source: (.+)$`)
-	listItem  = regexp.MustCompile(`^ {0,3}([-*+]|[0-9]{1,9}[.)])([ \t]|$)`)
+	atx      = regexp.MustCompile(`^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*$`)
+	source   = regexp.MustCompile(`^Source: (.+)$`)
+	listItem = regexp.MustCompile(`^ {0,3}([-*+]|[0-9]{1,9}[.)])([ \t]|$)`)
 )
 
-// parse applies the Markdown code rules once: fences (opened by 3 or more
-// backticks or tildes, closed by the same character at least as long),
+// parse applies the Markdown code rules once: fences (note.CodeLines),
 // indented code (4 spaces or a tab after a blank line, not within a list) and,
 // in mapText, inline code spans. The "## Links" section is dropped.
 func parse(body string) *parsed {
 	p := &parsed{}
-	var fenceChar byte
-	fenceLen := 0
 	indented, inList, skipLinks := false, false, false
 	prevBlank := true
 	keep := func(l pline) {
@@ -53,19 +51,14 @@ func parse(body string) *parsed {
 			p.lines = append(p.lines, l)
 		}
 	}
-	for _, raw := range strings.Split(strings.TrimRight(body, "\n"), "\n") {
-		if fenceChar != 0 {
-			if closesFence(raw, fenceChar, fenceLen) {
-				fenceChar = 0
-			}
+	text := strings.TrimRight(body, "\n")
+	// Fenced code is found by the scanner that validate and tracking share; an
+	// unclosed fence runs to the end of the body.
+	fenced, _ := note.CodeLines(text)
+	for i, raw := range strings.Split(text, "\n") {
+		if fenced[i] {
+			indented, prevBlank = false, false
 			keep(pline{text: raw, kind: kCode})
-			continue
-		}
-		if m := fenceOpen.FindStringSubmatch(raw); m != nil && !(m[1][0] == '`' && strings.Contains(m[2], "`")) {
-			fenceChar, fenceLen = m[1][0], len(m[1])
-			indented = false
-			keep(pline{text: raw, kind: kCode})
-			prevBlank = false
 			continue
 		}
 		if strings.TrimSpace(raw) == "" {
@@ -114,20 +107,6 @@ func parse(body string) *parsed {
 		p.lines = append(p.lines, pline{text: raw, kind: kText})
 	}
 	return p
-}
-
-// closesFence reports whether line closes a fence of char c opened with n
-// characters: at most 3 spaces, then at least n of c, then only blanks.
-func closesFence(line string, c byte, n int) bool {
-	t := strings.TrimLeft(line, " ")
-	if len(line)-len(t) > 3 {
-		return false
-	}
-	run := 0
-	for run < len(t) && t[run] == c {
-		run++
-	}
-	return run >= n && strings.TrimSpace(t[run:]) == ""
 }
 
 // mapText applies f to the parts of a prose line outside inline code spans
