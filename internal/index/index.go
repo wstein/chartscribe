@@ -27,6 +27,7 @@ type Note struct {
 
 // Index is the notes of one collection in file-name order.
 type Index struct {
+	Root    string // the collection root
 	Notes   []Note
 	Skipped []string // file names whose frontmatter did not parse (validate reports them)
 	IDs     []string // the ids of the notes, also of the skipped ones where an id line can be read
@@ -53,7 +54,7 @@ func Load(root string) (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
-	x := &Index{byName: map[string]int{}}
+	x := &Index{Root: root, byName: map[string]int{}}
 	for _, f := range files {
 		fm, body, err := note.Parse(f.Text)
 		if err != nil {
