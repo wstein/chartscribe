@@ -32,9 +32,17 @@ type Result struct {
 	Findings []Finding
 }
 
+// Overlay replaces the text of files read from disk, so a candidate result can
+// be validated without writing it. Keys are slash paths relative to the root:
+// "notes/<name>.md" and "README.md". Line endings of a value are taken as given.
+type Overlay map[string]string
+
 // Run validates the collection at root (a directory with a notes/ folder).
 // An error means the collection could not be read; rule violations are findings.
-func Run(root string) (Result, error) {
+func Run(root string) (Result, error) { return RunOverlay(root, nil) }
+
+// RunOverlay is Run with the files named in overlay read from it instead of from disk.
+func RunOverlay(root string, overlay Overlay) (Result, error) {
 	vocab, err := collection.LoadVocabulary(root)
 	if err != nil {
 		return Result{}, err
@@ -43,7 +51,12 @@ func Run(root string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	c := &checker{vocab: vocab}
+	for i, f := range files {
+		if text, ok := overlay["notes/"+f.Name]; ok {
+			files[i].Text = text
+		}
+	}
+	c := &checker{vocab: vocab, overlay: overlay}
 	if err := c.readme(root); err != nil {
 		return Result{}, err
 	}
@@ -56,6 +69,7 @@ func Run(root string) (Result, error) {
 
 type checker struct {
 	vocab    collection.Vocabulary
+	overlay  Overlay
 	findings []Finding
 
 	parsed []parsedNote // notes whose frontmatter parsed, in file order
