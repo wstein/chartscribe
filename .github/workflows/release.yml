@@ -335,6 +335,18 @@ jobs:
           - target: linux_armv6
             ext: tar.gz
             run: qemu-arm -cpu arm1176
+          - target: linux_riscv64
+            ext: tar.gz
+            run: qemu-riscv64
+          - target: linux_ppc64le
+            ext: tar.gz
+            run: qemu-ppc64le -cpu power9
+          - target: linux_s390x
+            ext: tar.gz
+            run: qemu-s390x -cpu max
+          - target: linux_loong64
+            ext: tar.gz
+            run: qemu-loongarch64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -345,6 +357,7 @@ jobs:
           path: ${{ runner.temp }}/dist
       - name: Install qemu-user
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-user
       - name: Smoke-test the shipped archive
