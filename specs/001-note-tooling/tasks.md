@@ -24,21 +24,21 @@ TDD order: in each group the test task comes first and fails before its implemen
 
 ## Slice 1 - validate
 
-- [ ] T101 Test: `internal/cli.Run(ctx, version, args, stdout, stderr)` with `version` and an unknown command (exit 2) on a cobra root, one fresh tree per call; add cobra v1.10.2; decide the TOML library.
-- [ ] T101a Test: the agent hint appears in the root help only; subcommand help stays plain (walk the command tree). Implement the hint. Write `llms.txt` and `docs/agent-guide.md` after `sheetmill/`.
-- [ ] T101c Test (FR-012): fails when `go.mod` or an import names a `zk-org` module or code starts a `zk` process (scan sources for `exec.Command("zk"`).
-- [ ] T101b Test: root discovery (FR-002): nearest directory with `notes/` from a subdirectory, `--root`, none found gives exit 3.
-- [ ] T102 Test: frontmatter parser table (flow list, block list, quoted, plain, single-quoted, comment, `[]`, unterminated, bad line). Implement `internal/note` parser.
-- [ ] T103 Test: id rules (14 digits, `-NNN`, calendar date, missing, duplicate). Implement.
-- [ ] T104 [P] Test and implement `field-unknown`, `list-type`, `tag-invalid`, `tag-count` (map without `status/`), vocabulary from `.cscribe.toml`.
-- [ ] T105 [P] Test and implement `title-char`, `name-duplicate` (case-insensitive, alias against title), `source-missing`.
-- [ ] T106 Test and implement `wikilink-unresolved` (title, alias, label, heading forms).
-- [ ] T107 Test and implement the map rules: `map-unlisted`, `map-multiple`, `map-category`, `map-duplicate`, `category-no-map`.
-- [ ] T108 [P] Test and implement `readme-link` (broken, outside the collection, external ignored).
-- [ ] T109 Test: the committed chartroom snapshot gives 0 findings; the five mutation probes each give one finding; compare with `check_notes.py` output on every failure fixture.
-- [ ] T109a Test (FR-005): validate on a read-only copy leaves the tree hash unchanged; `go list -deps ./internal/validate` contains neither `net` nor `os/exec`.
-- [ ] T110 Test (golden): human and JSON output, `--rule`, exit codes 0/1/2/3, `lint` alias. Implement `validate`.
-- [ ] T111 Docs: README command section, chartroom-check usage. (The umbrella switch is a separate PR there.)
+- [x] T101 Test: `internal/cli.Run(ctx, version, args, stdout, stderr)` with `version` and an unknown command (exit 2) on a cobra root, one fresh tree per call; add cobra v1.10.2; decide the TOML library.
+- [x] T101a Test: the agent hint appears in the root help only; subcommand help stays plain (walk the command tree). Implement the hint. Write `llms.txt` and `docs/agent-guide.md` after `sheetmill/`.
+- [x] T101c Test (FR-012): fails when `go.mod` or an import names a `zk-org` module or code starts a `zk` process (scan sources for `exec.Command("zk"`).
+- [x] T101b Test: root discovery (FR-002): nearest directory with `notes/` from a subdirectory, `--root`, none found gives exit 3.
+- [x] T102 Test: frontmatter parser table (flow list, block list, quoted, plain, single-quoted, comment, `[]`, unterminated, bad line). Implement `internal/note` parser.
+- [x] T103 Test: id rules (14 digits, `-NNN`, calendar date, missing, duplicate). Implement.
+- [x] T104 [P] Test and implement `field-unknown`, `list-type`, `tag-invalid`, `tag-count` (map without `status/`), vocabulary from `.cscribe.toml`.
+- [x] T105 [P] Test and implement `title-char`, `name-duplicate` (case-insensitive, alias against title), `source-missing`.
+- [x] T106 Test and implement `wikilink-unresolved` (title, alias, label, heading forms).
+- [x] T107 Test and implement the map rules: `map-unlisted`, `map-multiple`, `map-category`, `map-duplicate`, `category-no-map`.
+- [x] T108 [P] Test and implement `readme-link` (broken, outside the collection, external ignored).
+- [x] T109 Test: the committed chartroom snapshot gives 0 findings; the five mutation probes each give one finding; compare with `check_notes.py` output on every failure fixture.
+- [x] T109a Test (FR-005): validate on a read-only copy leaves the tree hash unchanged; `go list -deps ./internal/validate` contains neither `net` nor `os/exec`.
+- [x] T110 Test (golden): human and JSON output, `--rule`, exit codes 0/1/2/3, `lint` alias. Implement `validate`.
+- [x] T111 Docs: README command section, chartroom-check usage. (The umbrella switch is a separate PR there.)
 
 ## Slice 2 - init
 
