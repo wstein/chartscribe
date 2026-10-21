@@ -11,6 +11,7 @@ type fence struct {
 	n      int
 	quotes int
 	indent int
+	prefix string // the opening line before the fence characters, list markers as spaces
 }
 
 // CodeLines reports, for every line of text split at "\n", whether it belongs
@@ -35,10 +36,11 @@ func ClosingFence(text string) (string, bool) {
 	if open == nil {
 		return "", false
 	}
-	return strings.Repeat("> ", open.quotes) + strings.Repeat(" ", open.indent) + strings.Repeat(string(open.char), open.n), true
+	return open.prefix + strings.Repeat(string(open.char), open.n), true
 }
 
 func scanFences(text string) (fenced []bool, open *fence) {
+	cont := 0 // content indent of the list item the lines are in, 0 outside one
 	for _, line := range strings.Split(text, "\n") {
 		if open != nil {
 			rest, in := stripContainer(line, open)
@@ -54,11 +56,12 @@ func scanFences(text string) (fenced []bool, open *fence) {
 				continue
 			}
 		}
-		if f, ok := opens(line); ok {
+		if f, ok := opens(line, cont); ok {
 			open = f
 			fenced = append(fenced, true)
 			continue
 		}
+		cont = listContent(line, cont)
 		fenced = append(fenced, false)
 	}
 	return fenced, open
@@ -98,8 +101,29 @@ func listMarker(s string) int {
 	return i + sp
 }
 
-// opens parses the container prefix of line and a fence opening after it.
-func opens(line string) (*fence, bool) {
+// listContent tracks the content indent of the list item a (non-fence) line is
+// in: a list marker sets it, a blank line keeps it and any other line indented
+// less than the content ends the item.
+func listContent(line string, cont int) int {
+	if strings.TrimSpace(line) == "" {
+		return cont
+	}
+	sp := leadingSpaces(line)
+	if sp <= 3 && !strings.HasPrefix(line[sp:], ">") {
+		if w := listMarker(line[sp:]); w > 0 {
+			return sp + w
+		}
+	}
+	if sp < cont || (sp <= 3 && strings.HasPrefix(line[sp:], ">")) {
+		return 0
+	}
+	return cont
+}
+
+// opens parses the container prefix of line and a fence opening after it. cont
+// is the content indent of the list item the line continues (0 for none): a
+// fence on a continuation line belongs to that item.
+func opens(line string, cont int) (*fence, bool) {
 	f := &fence{}
 	rest := line
 	for {
@@ -110,20 +134,29 @@ func opens(line string) (*fence, bool) {
 		t := rest[sp:]
 		if f.indent == 0 && strings.HasPrefix(t, ">") {
 			f.quotes++
-			rest = strings.TrimPrefix(t[1:], " ")
+			after := strings.TrimPrefix(t[1:], " ")
+			f.prefix += rest[:sp] + t[:len(t)-len(after)]
+			rest = after
 			continue
 		}
 		if w := listMarker(t); w > 0 {
 			f.indent += sp + w
+			f.prefix += strings.Repeat(" ", sp+w)
 			rest = t[w:]
 			continue
 		}
 		break
 	}
+	if f.indent == 0 && f.quotes == 0 && cont > 0 && leadingSpaces(rest) >= cont {
+		f.indent = cont
+		f.prefix += rest[:cont]
+		rest = rest[cont:]
+	}
 	sp := leadingSpaces(rest)
 	if sp > 3 {
 		return nil, false
 	}
+	f.prefix += rest[:sp]
 	t := rest[sp:]
 	if t == "" || (t[0] != '`' && t[0] != '~') {
 		return nil, false

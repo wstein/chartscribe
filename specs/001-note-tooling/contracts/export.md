@@ -17,7 +17,7 @@ document. It only reads notes and writes only `--out`.
 - Code: fenced blocks (found by the scanner `validate` and `tracking` share, `note.CodeLines`: container prefixes
   of quotes and list items, the backtick info-string rule; a fence still open at the end of a note runs to the
   end of that note's text; the text ends there and export writes the matching closing fence (same character and
-  length, same quote and list container) so the rest of the document stays intact, and no link in it is rewritten),
+  length, with the exact leading prefix of the opening line, list markers as spaces) so the rest of the document stays intact, and no link in it is rewritten),
   indented code (4 spaces or a tab after a blank line, not inside a list) and inline code spans (a backtick run
   closed by a run of the same length, within one line) are copied as they are: no wikilink in them is a member,
   rewritten or reported, and a `#` line in them is no heading.
