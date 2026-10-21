@@ -32,6 +32,9 @@ func (c *checker) readme(root string) error {
 	if err != nil {
 		return err
 	}
+	if text, ok := c.overlay["README.md"]; ok {
+		data = []byte(text)
+	}
 	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return err
