@@ -1,16 +1,24 @@
 # Contract: export
 
-`cscribe export NOTE [--format md] [--out FILE|-] [--depth N] [--force]` writes one Markdown
+`cscribe export NOTE [--format md] [--out FILE|-] [--depth N] [--title TEXT] [--force]` writes one Markdown
 document. It only reads notes and writes only `--out`.
 
 ## Rules
 
 - NOTE is a title, alias, file name or id. Unknown: exit 2.
 - Included notes: NOTE, then the notes its resolved wikilinks name in body order (map order), each once,
+  (wikilinks in code and in the `## Links` section are not members: the Links section is "related", not content;
+  see Code below)
   down to `--depth` levels (default 1; 0 is NOTE alone). A note's direct members are all taken before
   deeper ones, so a note linked from the start and from a member stays at the start's level.
-- Title: `# <title of NOTE>`. Every other note is a heading `#`x(1+level) with its title (level 6 at most). Body
-  headings move down by the same amount. The body of NOTE follows its title.
+- Title: `# <title of NOTE>`, or `--title TEXT`. Every other note is a heading `#`x(1+level) with its title
+  (level 6 at most). Body headings move so that the shallowest one is one level below the note's own heading
+  (body `# H1` under `## Note` becomes `###`; level 6 at most). The body of NOTE follows its title.
+- Code: fenced blocks (opened by 3 or more backticks or tildes, closed by the same character at least as long),
+  indented code (4 spaces or a tab after a blank line, not inside a list) and inline code spans (a backtick run
+  closed by a run of the same length, within one line) are copied as they are: no wikilink in them is a member,
+  rewritten or reported, and a `#` line in them is no heading.
+- Relative Markdown links and images in note bodies are not rewritten (a known limitation).
 - Left out of each body: frontmatter, the generated `## Tracking` section, the `## Links` section and the
   `Source:` lines. Fenced code blocks are copied as they are (wikilinks and headings in them untouched).
 - Wikilinks `[[T]]`, `[[T|label]]`, `[[T#Heading]]` (T a title or alias): to a note in the document
@@ -20,7 +28,10 @@ document. It only reads notes and writes only `--out`.
 - `## Sources`: the distinct `Source:` texts in first-appearance order, one `- <text>` each; omitted when none.
 - Blank runs collapse to one line; the text ends with one newline. No timestamp, id or path: the same notes
   give the same bytes.
-- `--out FILE` creates the file and refuses an existing one (exit 2) unless `--force`; a missing directory
+- `--out FILE` creates the file and refuses an existing one (exit 2) unless `--force`; with `--force` the text
+  is written to a temporary file in the same directory and renamed over FILE. `--out` is refused (exit 2), even
+  with `--force`, when it resolves (cleaned, symbolic links of its directory resolved) inside the collection's
+  `notes/` tree, and when FILE is a symbolic link (links are neither followed nor replaced). A missing directory
   or a directory as FILE is exit 3. `-` or no `--out` is stdout. Only md is generated (`--format` other: exit 2).
 - Unresolved links: `unresolved [[target]] in <title>` on stderr, exit 0.
 - `--json` needs `--out FILE` (exit 2 otherwise) and prints one document on stdout:

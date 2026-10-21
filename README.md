@@ -35,7 +35,7 @@ cscribe [--root DIR] [--json] tags
 cscribe [--root DIR] [--json] links NOTE
 cscribe [--root DIR] [--json] backlinks NOTE
 cscribe [--root DIR] [--json] tracking [--write]
-cscribe [--root DIR] [--json] export NOTE [--format md] [--out FILE|-] [--depth N] [--force]
+cscribe [--root DIR] [--json] export NOTE [--format md] [--out FILE|-] [--depth N] [--title TEXT] [--force]
 cscribe version
 ```
 
@@ -84,7 +84,7 @@ documents are generated from them. The title is the start note; the notes its wi
 and `Source:` lines. A wikilink to a note in the document becomes an anchor link, any other one its text; the
 `Source:` lines are collected, without duplicates, into a final `## Sources` section. The output has no
 timestamps, so a rerun gives the same bytes. It goes to stdout or `--out FILE`, which is never replaced without
-`--force`; nothing else is written. Only Markdown is generated (`--format md`): render it with Hugo, Quartz or
+`--force` and never inside `notes/` or at a symbolic link; nothing else is written. Wikilinks in code and in the `## Links` section do not pull notes in. `--title TEXT` replaces the document title. Only Markdown is generated (`--format md`): render it with Hugo, Quartz or
 pandoc. `--json` (with `--out`) lists the included notes and the unresolved links; see
 [export contract](specs/001-note-tooling/contracts/export.md).
 

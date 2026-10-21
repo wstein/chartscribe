@@ -91,7 +91,7 @@ the section by hand. Details: [tracking output](../specs/001-note-tooling/contra
 `cscribe export "Map - Topic" --out topic.md` writes one Markdown document from a map (or any note): the
 notes it links to become heading sections in map order (`--depth N` follows links further), links between them
 become anchors, `Source:` lines are collected in a final `## Sources` section. The output is reproducible (no
-timestamps) and `--out` is never overwritten without `--force`. Unresolved links are warned on stderr; `--json`
+timestamps) and `--out` is never overwritten without `--force`, never inside `notes/` and never at a symbolic link; `--title TEXT` sets the document title; wikilinks in code and in `## Links` pull no notes in. Unresolved links are warned on stderr; `--json`
 with `--out` lists them. Only Markdown: render it with Hugo, Quartz or pandoc
 ([contract](../specs/001-note-tooling/contracts/export.md)).
 
