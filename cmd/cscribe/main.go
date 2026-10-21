@@ -4,11 +4,16 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 
 	"github.com/wstein/chartscribe/internal/cli"
 )
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	code := cli.Run(ctx, cli.Version, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
+	os.Exit(code)
 }
