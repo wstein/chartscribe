@@ -56,6 +56,12 @@ TDD order: in each group the test task comes first and fails before its implemen
 - [x] T303 [P] Test and implement `links` and `backlinks` (alias resolution, unresolved targets reported).
 - [x] T304 Golden files for JSON output; update README.
 
+## Export (stacked on slice 3)
+
+- [x] T701 Test and implement `internal/export` (map order, depth, anchors, plain text for links outside the export, Sources section, deterministic) and the `index` accessors.
+- [x] T702 Test and implement `cscribe export` (`--out`, `--force`, `--depth`, `--format md`, `--json`, exit codes, nothing else written); golden files.
+- [x] T703 Docs: README, agent guide, llms.txt, [contracts/export.md](contracts/export.md). Format decision: md only (HTML is left to Hugo, Quartz or pandoc).
+
 ## Slice 4 - tracking
 
 - [x] T401 Test: parse `gh issue list --json` output (fixtures); the `Chartroom: <id> <title>` link rule.
