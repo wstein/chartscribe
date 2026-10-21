@@ -12,8 +12,8 @@ ChartScribe is a Go CLI, `cscribe`, for plain-text Zettelkasten collections. A
 collection has a `notes/` folder of Markdown files, one idea per file. The
 implemented commands besides `version` are `cscribe validate` (alias `lint`), which
 checks every rule of the note format without network access and without writing, and
-`cscribe init`, which writes tool configuration (see below).
-Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
+`cscribe init`, which writes tool configuration (see below), and the native note commands
+`new`, `list`, `tags`, `links` and `backlinks` (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
 and are not implemented yet.
 
 ## Setting up
@@ -66,6 +66,16 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
 3. Fix every finding (`<note>: <message>` on stderr). `cscribe --json validate` gives the same findings as one
    JSON document; `--rule <name>` limits the output to a rule.
 4. Repeat until it exits 0.
+
+## Creating and finding notes
+
+- `cscribe new "Title" --tag type/idea` creates `notes/Title.md` with a fresh id and prints its path. It refuses
+  an existing title and forbidden characters (exit 2). Then fill the tags and the `Source: <text>, lines A-B` line,
+  link the note from its map and run the validate loop.
+- `cscribe list [--tag T]` (id, title, path, tags), `cscribe tags` (tag and count), `cscribe links NOTE` and
+  `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
+  ([query output](../specs/001-note-tooling/contracts/query-output.md)). `links` prints `unresolved` for a target
+  that names no note; `validate` is the check that fails on it.
 
 ## Configuring the tools
 
