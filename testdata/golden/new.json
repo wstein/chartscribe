@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "command": "new",
+  "ok": true,
+  "root": "<root>",
+  "id": "20261021093015",
+  "title": "Tagged",
+  "path": "notes/Tagged.md",
+  "tags": [
+    "type/idea",
+    "a",
+    "b"
+  ]
+}
