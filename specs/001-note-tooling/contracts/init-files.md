@@ -13,12 +13,14 @@ cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--o
 
 ## Common
 
+`.cscribe.toml` is written under every `--tool`, including `quartz`. The template files belong to their tools: `templates/Note.md` to Obsidian, `.zk/templates/note.md` to zk; their bodies differ in the id placeholder only (`{{date:YYYYMMDDHHmmss}}` against `{{format-date now '%Y%m%d%H%M%S'}}`). `cscribe new` (slice 3) uses an embedded template of the same shape and needs neither file.
+
 | Path | Content |
 | --- | --- |
 | `.cscribe.toml` | the tag vocabulary of the validate contract (default values) |
-| `templates/Note.md` | the template body below, used by Obsidian and (as `.zk/templates/note.md`) by zk |
+| `templates/Note.md` | written only with `--tool obsidian`; see Obsidian below |
 
-Note template (Obsidian syntax):
+Obsidian note template `templates/Note.md`:
 
 ```markdown
 ---

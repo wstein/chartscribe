@@ -1,7 +1,7 @@
 # Feature Specification: Note tooling for a Zettelkasten collection
 
 **Branch**: `docs/spec-001-note-tooling` | **Created**: 2026-10-21
-**Status**: Draft, independent review pending. No code yet.
+**Status**: Draft, independent review pending (round-1 findings addressed in follow-up commits). No code yet.
 **Input**: Design notes `ChartScribe Overview`, `Command Surface`, `zk Integration`, `Delivery Plan` and `Obsidian Setup` in the Anchorage `chartroom/` collection, and the owner decisions of 2026-10-21.
 
 ## Scope and decisions
@@ -11,7 +11,8 @@
 `id` (14-digit timestamp), `aliases` and `tags`; tags are namespaced `type/`, `status/`,
 `category/`; links are `[[wikilinks]]`; a note ends with `## Links` and a `Source:` line;
 maps are notes; an issue refers to a note with a line `Chartroom: <id> <title>`; a generated
-`## Tracking` section lists the issues that refer to a note. The rules are in
+`## Tracking` section after the `Source:` line lists the issues that refer to a note
+(format in the [validate rules](contracts/validate-rules.md#tracking-section)). The rules are in
 [contracts/validate-rules.md](contracts/validate-rules.md); their reference implementation
 today is `chartroom/scripts/check_notes.py`.
 
@@ -74,9 +75,10 @@ placeholders the user must fill.
 
 ### US4 - Keep a Tracking section current (P2, slice 4)
 
-`cscribe tracking` runs `gh issue list --search "Chartroom: <id>" --json number,title,state,url`
-for the notes and rewrites only the generated `## Tracking` section; dry-run by default, `--write`
-applies. `gh` missing or not logged in is an environment error (exit 3); the other commands never need `gh`.
+`cscribe tracking` runs `gh issue list --state all --limit 200 --search "Chartroom: <id>" --json number,title,state,url`
+per note (`--state all` because the default lists open issues only; 200 matches is an error, not a silent cut)
+and rewrites only the generated `## Tracking` section, which shows each issue with its state; dry-run by default,
+`--write` applies. `gh` missing or not logged in is an environment error (exit 3); the other commands never need `gh`.
 
 ### US5 - Repair mechanical problems and offer tools to agents (P3, slice 5, optional)
 
@@ -91,15 +93,33 @@ server over stdio exposes the read commands. Both are optional and may be droppe
 | FR-001 | `validate` implements every rule of the validate contract, with the same findings as `check_notes.py` on the shared fixtures. | 1 |
 | FR-002 | The collection root is `--root`, else the nearest directory with a `notes/` folder; a missing root is exit 3. | 1 |
 | FR-003 | Tag vocabulary comes from `.cscribe.toml` when present; the built-in default is the chartroom vocabulary. | 1 |
-| FR-004 | Human output on stdout; `--json` emits one document; exit codes 0 clean, 1 findings, 2 usage, 3 environment. | 1 |
+| FR-004 | Findings on stderr and the summary on stdout; `--json` emits one document on stdout; exit codes 0 clean, 1 findings, 2 usage, 3 environment. | 1 |
 | FR-005 | `validate` reads files only: no network, no process start, no write. | 1 |
 | FR-006 | `init` plans by default, `--apply` writes missing files only, `--overwrite` is explicit and per path; reruns are idempotent. | 2 |
 | FR-007 | `init` writes configuration only; it installs no plugin and starts no tool. | 2 |
 | FR-008 | `new` creates a note from the template, id from the clock, filename equals the title, refuses an existing filename or a forbidden character. | 3 |
 | FR-009 | `list`, `tags`, `links`, `backlinks` read the collection natively and share the parser of `validate`. | 3 |
-| FR-010 | `tracking` changes only the `## Tracking` section; the body bytes outside it stay identical. | 4 |
+| FR-010 | `tracking` changes only the `## Tracking` section, defined as: starts at the line `## Tracking` after the `Source:` line, ends at the next `## ` heading or end of file; one line per issue `- #<number> <title> (<state>) <url>`; no matching issue removes the section; a missing section is appended after the last line. Bytes outside it stay identical. `validate` accepts the section and ignores its content. | 4 |
 | FR-011 | The notes `cscribe` writes are readable by `zk` unchanged (filename = title, `id`/`aliases`/`tags`, `[[wikilinks]]`). | 2-4 |
-| FR-012 | No dependency on `zk` code or binary; no code of `zk` is copied (GPL-3.0). | all |
+| FR-012 | No dependency on `zk` code or binary: a test fails when `go.mod` or an import names a `zk-org` module or `cscribe` starts a `zk` process. | all |
+| FR-013 | The CLI uses `github.com/spf13/cobra` at the version pinned by the sibling tools (v1.10.2 in `sourcesteward` and `sheetmill`) with their command-tree and exit-code boundary: `internal/cli.Run(ctx, version, args, stdout, stderr) int` owns a fresh command tree per call and is the only place that maps errors to exit codes. | 1 |
+| FR-014 | Help text carries the agent hint in the sibling pattern (below); the repository ships `llms.txt` and `docs/agent-guide.md`; a test asserts the hint in the root help and in every subcommand help. | 1 |
+| FR-015 | A manual built from `docs/` is published at <https://wstein.github.io/chartscribe/> by a Pages workflow modelled on `sheetmill/.github/workflows/pages.yml`: actions pinned by SHA, Hugo pinned with checksum, deploy only after the checks pass, least-privilege permissions, concurrency group `pages`. A separate PR adds it. The Quartz view of chartroom is separate. | Pages |
+
+## Agent hint and manual
+
+Help text carries the hint of the sibling tools (`sourcesteward` `agentHints`, `sheetmill` `agentHelp`):
+
+```text
+Are you an AI? Use these resources ONLY IF your task specifically asks you to:
+  Help a human understand, set up or use ChartScribe:
+    https://raw.githubusercontent.com/wstein/chartscribe/main/docs/agent-guide.md
+  Debug or investigate a problem with ChartScribe:
+    https://raw.githubusercontent.com/wstein/chartscribe/main/llms.txt
+```
+
+`llms.txt` and `docs/agent-guide.md` follow the layout of `sheetmill/llms.txt` and `sheetmill/docs/agent-guide.md`.
+GitHub Pages is enabled for the repository (build type workflow, <https://wstein.github.io/chartscribe/>).
 
 ## Obsidian: what config files can and cannot do
 
@@ -132,6 +152,8 @@ Hence the gate is `cscribe validate`. Obsidian's Properties editor rewrites fron
 - SC-001: `cscribe validate` on the chartroom collection: 0 findings; every failure fixture gives its finding; the five mutation probes (broken wikilink, duplicate id, renamed category, category swapped to another valid one, note removed from a map) each give a finding.
 - SC-002: Golden files for human and JSON output; exit codes 0, 1, 2, 3 each tested.
 - SC-003: `init` into an empty directory, run twice: the second plan lists nothing to write; a pre-existing file is unchanged byte for byte without `--overwrite`.
+- SC-006: Help text of the root and of every subcommand contains the agent hint (test); `llms.txt` and `docs/agent-guide.md` exist.
+- SC-007: The Pages workflow builds the manual from `docs/` after the checks; the deploy job runs on `main` only.
 - SC-004: A generated collection passes `validate`; when `zk` is installed an optional CI test runs `zk list --format json` and `zk graph` on it and finds every note and every wikilink.
 - SC-005: When slice 1 is accepted, the umbrella's `make chartroom-check` calls `cscribe validate` and the Python checker is removed in the same PR (that PR belongs to the umbrella; tag, release and the BundleDock entry need the owner's approval).
 

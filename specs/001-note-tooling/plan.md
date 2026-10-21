@@ -1,14 +1,15 @@
 # Implementation plan: Note tooling
 
 Go, module `github.com/wstein/chartscribe`, pinned version in `.go-version`. Few direct
-dependencies; the standard library covers the frontmatter subset, JSON and TOML is the only
-candidate for a library (decide in T101).
+dependencies: `github.com/spf13/cobra` (v1.10.2, as `sourcesteward` and `sheetmill`; model:
+`sourcesteward/internal/cli/root.go`) and a TOML library for `.cscribe.toml` (decide in T101); the standard
+library covers the frontmatter subset and JSON.
 
 ## Layout
 
 ```text
 cmd/cscribe/            main: calls internal/cli.Run
-internal/cli/           flags, output, exit codes (testable Run(args, stdout, stderr))
+internal/cli/           cobra command tree, output, exit codes (Run(ctx, version, args, stdout, stderr) int; one fresh tree per call)
 internal/note/          filename, frontmatter parser, wikilinks, id
 internal/collection/    load a collection, config (.cscribe.toml)
 internal/validate/      rules (one file per rule group), findings
@@ -25,6 +26,13 @@ One PR (or a short stack) per slice; each ends with `make check` green.
 3. `new`, `list`, `tags`, `links`, `backlinks` on the slice-1 parser.
 4. `tracking`: `gh` behind an interface; tests use a fake runner, one optional test uses real `gh`.
 5. Optional: `--fix`, MCP.
+
+## Agent resources and manual
+
+Help text carries the agent hint; `llms.txt` and `docs/agent-guide.md` ship in slice 1 (layout of `sheetmill/`).
+A separate small PR adds `docs/` and a Pages workflow modelled on `sheetmill/.github/workflows/pages.yml`
+(SHA-pinned actions, pinned Hugo with checksum, checks before deploy, least privilege, concurrency `pages`).
+Unlike `sheetmill`, `cscribe` has no site generator of its own, so the manual is plain Hugo over `docs/`.
 
 ## Verification
 

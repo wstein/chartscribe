@@ -41,7 +41,7 @@ flow lists (`["a", "b"]`, `[a, b]`, `[]`) and block lists (`- item`), `#` commen
 | `source-missing` | a note that is not a map has no line `Source: <text>, lines A-B` |
 | `wikilink-unresolved` | a `[[target]]` in a body does not resolve to a title or alias (case-insensitive); the label (`\|`) and heading (`#`) parts are ignored for resolution |
 | `map-unlisted` | a non-map note is linked from no map |
-| `map-multiple` | a non-map note is linked from more than one map |
+| `map-multiple` | a non-map note is linked from more than one map (several links to it from the same map count once) |
 | `map-category` | the one map linking a note has a different category than the note |
 | `map-duplicate` | more than one map for a category |
 | `category-no-map` | a category in use has no map |
@@ -50,7 +50,16 @@ flow lists (`["a", "b"]`, `[a, b]`, `[]`) and block lists (`- item`), `#` commen
 Markdown links in notes are not checked. Wikilinks inside code blocks are checked like any other
 (same as the reference); a later spec may change that.
 
+## Tracking section
+
+A note may end with a generated section written by `cscribe tracking`: it starts at the line `## Tracking`
+after the `Source:` line and ends at the next `## ` heading or at the end of the file. Each line is
+`- #<number> <title> (<state>) <url>`. `validate` accepts the section, and ignores its content: no
+`wikilink-unresolved` finding comes from it (an issue title may contain `[[...]]`).
+
 ## Differences from the reference
 
-Single-quoted scalars, plain flow items and `[]` are accepted (Obsidian writes them). Everything
+A note linked several times from one map counts once for `map-multiple` (the reference reports it as in more than one map).
+
+Single-quoted scalars, plain flow items and `[]` are accepted (Obsidian writes them), and the `## Tracking` section is skipped. Everything
 else is the reference behaviour, including its quirks, until a fixture says otherwise.
