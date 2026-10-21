@@ -106,3 +106,17 @@ func TestLine(t *testing.T) {
 		t.Fatalf("line = %q", got)
 	}
 }
+
+func TestByNoteIgnoresCode(t *testing.T) {
+	is := Issue{Number: 1, Body: "```\nChartroom: 20261021120000 x\n```\n"}
+	if by := ByNote([]Issue{is}); len(by) != 0 {
+		t.Fatalf("fenced marker linked: %v", by)
+	}
+}
+
+func TestLineStripsControlCharacters(t *testing.T) {
+	got := Line(Issue{Number: 7, Title: "a\x1b[31mred\x00\u0085b\u202ec", State: "OPEN", URL: "https://x/7\x1b"})
+	if got != "- #7 a [31mred b c (open) https://x/7" {
+		t.Fatalf("line = %q", got)
+	}
+}
