@@ -137,7 +137,9 @@ func checkOut(root, out string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if inside(notes, parent) {
+	if hit, err := touchesNotes(notes, parent, target); err != nil {
+		return "", err
+	} else if hit {
 		return "", usageError{fmt.Errorf("--out %s is inside the notes of the collection; export never writes there", out)}
 	}
 	info, err := os.Lstat(target)
@@ -152,16 +154,59 @@ func checkOut(root, out string) (string, error) {
 	return target, nil
 }
 
-// inside reports whether dir is base or below it.
-func inside(base, dir string) bool {
-	rel, err := filepath.Rel(base, dir)
+// touchesNotes reports whether writing target (in dir) would land in the notes
+// directory or on a note. It decides by file identity (os.SameFile on dir and
+// each of its existing ancestors against notes, and on target against every
+// note file), so aliases through links or a case-insensitive file system are
+// caught; the case-insensitive path comparison is a second guard.
+func touchesNotes(notes, dir, target string) (bool, error) {
+	if insideFold(notes, dir) {
+		return true, nil
+	}
+	ninfo, err := os.Stat(notes)
 	if err != nil {
+		return false, err
+	}
+	for d := dir; ; {
+		if info, err := os.Stat(d); err == nil && os.SameFile(info, ninfo) {
+			return true, nil
+		}
+		up := filepath.Dir(d)
+		if up == d {
+			break
+		}
+		d = up
+	}
+	tinfo, err := os.Lstat(target)
+	if err != nil {
+		return false, nil // not there yet
+	}
+	entries, err := os.ReadDir(notes)
+	if err != nil {
+		return false, err
+	}
+	for _, e := range entries {
+		if info, err := os.Stat(filepath.Join(notes, e.Name())); err == nil && os.SameFile(info, tinfo) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// insideFold reports whether dir is base or below it, comparing the path
+// components without regard to case.
+func insideFold(base, dir string) bool {
+	b := strings.Split(filepath.Clean(base), string(filepath.Separator))
+	d := strings.Split(filepath.Clean(dir), string(filepath.Separator))
+	if len(d) < len(b) {
 		return false
 	}
-	if rel == "." {
-		return true
+	for i := range b {
+		if !strings.EqualFold(b[i], d[i]) {
+			return false
+		}
 	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return true
 }
 
 // writeExport writes text to path (already checked, never a link or a
