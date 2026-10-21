@@ -24,6 +24,10 @@ repositories; a containing workspace may add its own rules.
 - Agents push only their own topic branches and open pull requests. They never
   push the default branch, never merge, and never create tags or releases.
 - Builds of distribution artifacts, releases, publication and repository
-  settings need the owner's explicit approval.
+  settings need the owner's explicit approval. Feature 002 (`specs/002-release`) adds a
+  tag-triggered release workflow, `.github/workflows/release.yml`: an owner-pushed annotated tag
+  `vMAJOR.MINOR.PATCH` on `main` is the publication approval for that tag only, and a manual run
+  is a dry run that never publishes. Agents never push tags, start the workflow or create
+  releases, and the environment, variable and ruleset settings stay with the owner.
 - Never write git identity configuration (`user.name`, `user.email`) into a
   repository or worktree.
