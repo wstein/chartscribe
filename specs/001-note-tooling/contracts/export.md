@@ -31,7 +31,7 @@ document. It only reads notes and writes only `--out`.
 - `--out FILE` creates the file and refuses an existing one (exit 2) unless `--force`; with `--force` the text
   is written to a temporary file in the same directory and renamed over FILE. `--out` is refused (exit 2), even
   with `--force`, when it resolves (cleaned, symbolic links of its directory resolved) inside the collection's
-  `notes/` tree, and when FILE is a symbolic link (links are neither followed nor replaced). A missing directory
+  `notes/` tree (decided by file identity of the directory and its ancestors and of FILE against every note, so links and a case-insensitive file system are covered, and by a case-insensitive path comparison), and when FILE is a symbolic link (links are neither followed nor replaced). A missing directory
   or a directory as FILE is exit 3. `-` or no `--out` is stdout. Only md is generated (`--format` other: exit 2).
 - Unresolved links: `unresolved [[target]] in <title>` on stderr, exit 0.
 - `--json` needs `--out FILE` (exit 2 otherwise) and prints one document on stdout:

@@ -182,3 +182,75 @@ func TestExportTitleOverride(t *testing.T) {
 		t.Fatalf("code %d, out %q", code, out)
 	}
 }
+
+func TestTouchesNotesByIdentity(t *testing.T) {
+	root := t.TempDir()
+	notes := filepath.Join(root, "notes")
+	if err := os.Mkdir(notes, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	note := filepath.Join(notes, "A.md")
+	if err := os.WriteFile(note, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := t.TempDir()
+	alias := filepath.Join(other, "alias")
+	if err := os.Symlink(notes, alias); err != nil {
+		t.Skip("no symlinks:", err)
+	}
+	hard := filepath.Join(other, "hard.md")
+	if err := os.Link(note, hard); err != nil {
+		t.Skip("no hard links:", err)
+	}
+	tests := []struct {
+		name        string
+		dir, target string
+		want        bool
+	}{
+		{"symlink alias of notes", alias, filepath.Join(alias, "New.md"), true},
+		{"below an alias", filepath.Join(alias, "sub"), filepath.Join(alias, "sub", "x.md"), true},
+		{"hard link of a note", other, hard, true},
+		{"unrelated directory", other, filepath.Join(other, "doc.md"), false},
+		{"collection root", root, filepath.Join(root, "doc.md"), false},
+	}
+	for _, tt := range tests {
+		got, err := touchesNotes(notes, tt.dir, tt.target)
+		if err != nil || got != tt.want {
+			t.Errorf("%s: got %v, %v; want %v", tt.name, got, err, tt.want)
+		}
+	}
+}
+
+func TestInsideFold(t *testing.T) {
+	sep := string(filepath.Separator)
+	base := sep + filepath.Join("c", "Col", "notes")
+	for dir, want := range map[string]bool{
+		base:                                     true,
+		sep + filepath.Join("c", "col", "NOTES"): true,
+		sep + filepath.Join("C", "Col", "Notes", "sub"): true,
+		sep + filepath.Join("c", "Col", "notes2"):       false,
+		sep + filepath.Join("c", "Col"):                 false,
+	} {
+		if got := insideFold(base, dir); got != want {
+			t.Errorf("insideFold(%q) = %v, want %v", dir, got, want)
+		}
+	}
+}
+
+// On a case-insensitive file system NOTES/ names the notes directory; the guard
+// must refuse it. Skipped where the temp directory is case-sensitive.
+func TestExportRefusesCaseAliasOfNotes(t *testing.T) {
+	root := copyCollection(t)
+	if _, err := os.Stat(filepath.Join(root, "NOTES")); err != nil {
+		t.Skip("case-sensitive file system")
+	}
+	note := filepath.Join(root, "notes", "Anchor.md")
+	before, _ := os.ReadFile(note)
+	code, _, errOut := run("--root", root, "export", "Map - Harbor", "--out", filepath.Join(root, "NOTES", "ANCHOR.md"), "--force")
+	if code != 2 {
+		t.Fatalf("code %d, stderr %q", code, errOut)
+	}
+	if after, _ := os.ReadFile(note); string(after) != string(before) {
+		t.Error("a note was changed")
+	}
+}
