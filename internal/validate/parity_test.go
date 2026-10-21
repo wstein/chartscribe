@@ -131,6 +131,7 @@ func TestParityWithReference(t *testing.T) {
 	}
 	for _, root := range roots {
 		t.Run(filepath.Base(root), func(t *testing.T) {
+			root = materialize(t, root)
 			want := referencePairs(t, script, root)
 			got := goPairs(t, root)
 			if strings.Join(got, "|") != strings.Join(want, "|") {
