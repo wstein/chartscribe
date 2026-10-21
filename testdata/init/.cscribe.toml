@@ -1,0 +1,4 @@
+[tags]
+type = ["idea", "decision", "milestone", "design", "evidence", "question", "process"]
+status = ["open", "decided", "done", "dropped", "reference"]
+category = ["direction", "state", "ratings", "roadmap", "design", "credentials-network", "providers", "interfaces", "recovery", "decisions", "delivery", "process"]
