@@ -146,3 +146,19 @@ func TestFixNoCollection(t *testing.T) {
 		t.Errorf("%d %s", code, out)
 	}
 }
+
+func TestFixApplyFailureNamesTheFiles(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory modes")
+	}
+	root := fixCollection(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.Chmod(notes, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(notes, 0o755)
+	code, _, errOut := run("--root", root, "validate", "--fix", "--apply")
+	if code != 3 || !strings.Contains(errOut, "not written: notes/First note.md") {
+		t.Errorf("%d %q", code, errOut)
+	}
+}

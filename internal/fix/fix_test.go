@@ -4,6 +4,7 @@ package fix
 
 import (
 	"crypto/sha256"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,7 +123,7 @@ func fixAndCheck(t *testing.T, root string) *Plan {
 
 func TestTagsCaseFoldAndDedupe(t *testing.T) {
 	root := collectionWith(t, map[string]string{
-		"notes/First note.md": "---\nid: 20261021120000\ntags:\n  - \"Type/Idea\"\n  - type/idea\n  - '#status/open'\n  - category/direction\n  - alpha\n---\nBody text.\n\n" + source,
+		"notes/First note.md": "---\nid: 20261021120000\ntags:\n  - type/idea\n  - \"status/Open\"\n  - status/open\n  - category/direction\n  - alpha\n---\nBody text.\n\n" + source,
 	})
 	p := fixAndCheck(t, root)
 	if len(findings(t, root)) != 0 {
@@ -133,7 +134,7 @@ func TestTagsCaseFoldAndDedupe(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 	e := p.Edits[0]
-	if e.File != "notes/First note.md" || e.Line != 3 || e.Rule != "tag-count" || !strings.Contains(e.Old, "Type/Idea") || !strings.HasPrefix(e.New, "tags: [") {
+	if e.File != "notes/First note.md" || e.Line != 3 || e.Rule != "tag-invalid" || !strings.Contains(e.Old, "status/Open") || !strings.HasPrefix(e.New, "tags: [") {
 		t.Errorf("edit = %+v", e)
 	}
 }
@@ -249,10 +250,10 @@ func TestMapUnlistedNotFixedWithoutExactlyOneMap(t *testing.T) {
 }
 
 func TestFixThatDoesNotValidateIsRefused(t *testing.T) {
-	// The map ends in a generated tracking section, which validate ignores: a link added there
-	// would not list the note.
+	// The only links of the map sit in a generated tracking section, which validate ignores: a link
+	// added there would not list the note.
 	root := collectionWith(t, map[string]string{
-		"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n\n- [[Second note]]\n\n## Tracking\n\n- #1 x (open) https://example.org/1\n",
+		"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n\n## Tracking\n\n- [[Second note]]\n",
 		"notes/Third note.md":  "---\nid: 20261021120002\ntags: [\"type/idea\", \"status/open\", \"category/state\"]\n---\nBody text.\n\n" + source,
 	})
 	before := read(t, root, "notes/Map - State.md")
@@ -268,6 +269,111 @@ func TestFixThatDoesNotValidateIsRefused(t *testing.T) {
 	}
 }
 
+func TestFixThatAddsAFindingIsRefused(t *testing.T) {
+	// The fix lowers status/Open and removes the repeated type/idea, so tag-invalid goes, but
+	// "found 3" becomes "found 2" for type/: fewer findings, one of them new.
+	root := collectionWith(t, map[string]string{
+		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"type/idea\", \"type/decision\", \"status/Open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
+	})
+	p := build(t, root)
+	if len(p.Edits) != 0 || len(p.Refused) != 1 {
+		t.Fatalf("edits = %+v refused = %+v", p.Edits, p.Refused)
+	}
+}
+
+func TestBetter(t *testing.T) {
+	a := validate.Finding{Rule: "tag-count", Note: "A.md", Message: "x"}
+	b := validate.Finding{Rule: "tag-count", Note: "B.md", Message: "y"}
+	c := validate.Finding{Rule: "tag-count", Note: "C.md", Message: "z"}
+	for _, tt := range []struct {
+		name          string
+		before, after []validate.Finding
+		want          bool
+	}{
+		{"fewer", []validate.Finding{a, b}, []validate.Finding{a}, true},
+		{"same", []validate.Finding{a, b}, []validate.Finding{a, b}, false},
+		{"fewer but new", []validate.Finding{a, b}, []validate.Finding{c}, false},
+		{"all fixed", []validate.Finding{a}, nil, true},
+	} {
+		if got := better(tt.before, tt.after); got != tt.want {
+			t.Errorf("%s: %v", tt.name, got)
+		}
+	}
+}
+
+func TestSameDerivedIDIsFixedOnce(t *testing.T) {
+	tags := "tags: [\"type/idea\", \"status/open\", \"category/direction\"]"
+	root := collectionWith(t, map[string]string{
+		"notes/Gamma.md":           "---\nid: \"2026-10-21 13:00:00\"\n" + tags + "\n---\nBody text.\n\n" + source,
+		"notes/Hotel.md":           "---\nid: 20261021130000x\n" + tags + "\n---\nBody text.\n\n" + source,
+		"notes/Map - Direction.md": "---\nid: 20261021120100\ntags: [\"type/map\", \"category/direction\"]\n---\nMap.\n\n- [[First note]]\n- [[Gamma]]\n- [[Hotel]]\n",
+	})
+	// Hotel's id has a letter: not derivable. Make it derive the same value instead.
+	putFile(t, root, "notes/Hotel.md", "---\nid: \"2026/10/21 13:00:00\"\n"+tags+"\n---\nBody text.\n\n"+source)
+	p := build(t, root)
+	ids := 0
+	for _, e := range p.Edits {
+		if e.Rule == "id-invalid" {
+			ids++
+		}
+	}
+	if ids > 1 {
+		t.Fatalf("both notes were given the same id: %+v", p.Edits)
+	}
+	if err := p.Apply(root); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range findings(t, root) {
+		if f.Rule == "id-duplicate" {
+			t.Errorf("duplicate id: %v", f)
+		}
+	}
+}
+
+func putFile(t *testing.T, root, rel, text string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOnlyNamedTagsChange(t *testing.T) {
+	root := collectionWith(t, map[string]string{
+		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\", \"Type/Idea\", \"Free\", \"Free\"]\n---\nBody text.\n\n" + source,
+	})
+	p := build(t, root)
+	want := `tags: ["type/idea", "status/open", "category/direction", "Type/Idea", "Free", "Free"]`
+	if len(p.Edits) != 1 || p.Edits[0].New != want || p.Edits[0].Rule != "tag-invalid" {
+		t.Errorf("edits = %+v", p.Edits)
+	}
+}
+
+func TestMapLinkGoesToTheListNotTheEndOfTheFile(t *testing.T) {
+	root := collectionWith(t, map[string]string{
+		"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n\n* [[Second note]]\n* [[Fifth note]]\n\nClosing words.\n",
+		"notes/Fifth note.md":  "---\nid: 20261021120005\ntags: [\"type/idea\", \"status/open\", \"category/state\"]\n---\nBody text.\n\n" + source,
+		"notes/Third note.md":  "---\nid: 20261021120002\ntags: [\"type/idea\", \"status/open\", \"category/state\"]\n---\nBody text.\n\n" + source,
+	})
+	fixAndCheck(t, root)
+	want := "* [[Second note]]\n* [[Fifth note]]\n* [[Third note]]\n\nClosing words.\n"
+	if got := read(t, root, "notes/Map - State.md"); !strings.HasSuffix(got, want) {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestMapLinkNotFixedWithoutOneListOrWithUnknownMaps(t *testing.T) {
+	third := "---\nid: 20261021120002\ntags: [\"type/idea\", \"status/open\", \"category/state\"]\n---\nBody text.\n\n" + source
+	for name, files := range map[string]map[string]string{
+		"no list":    {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\nMap.\n", "notes/Third note.md": third},
+		"two lists":  {"notes/Map - State.md": "---\nid: 20261021120101\ntags: [\"type/map\", \"category/state\"]\n---\n- [[Second note]]\n\ntext\n\n- [[First note]]\n", "notes/Third note.md": third},
+		"broken map": {"notes/Map - State 2.md": "no frontmatter\n", "notes/Third note.md": third},
+	} {
+		root := collectionWith(t, files)
+		if p := build(t, root); len(p.Edits) != 0 {
+			t.Errorf("%s: planned %+v", name, p.Edits)
+		}
+	}
+}
 func TestReadmeLinkCaseFold(t *testing.T) {
 	root := collectionWith(t, map[string]string{
 		"README.md":     "# Notes\n\nSee [a](Docs/Guide.MD#top), [b](DOCS/guide.md) and [c](https://example.org/X).\n[gone](nothing.md)\n",
@@ -329,7 +435,7 @@ func TestRuleFilter(t *testing.T) {
 
 func TestSymlinkNoteRefused(t *testing.T) {
 	root := collectionWith(t, map[string]string{
-		"outside.md": "---\nid: 20261021120000\ntags: [\"Type/idea\", \"status/open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
+		"outside.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
 	})
 	link := filepath.Join(root, "notes", "First note.md")
 	if err := os.Remove(link); err != nil {
@@ -350,7 +456,7 @@ func TestSymlinkNoteRefused(t *testing.T) {
 }
 
 func TestCRLFNoteRefused(t *testing.T) {
-	text := "---\r\nid: 20261021120000\r\ntags: [\"Type/idea\", \"status/open\", \"category/direction\"]\r\n---\r\nBody text.\r\n\r\n" + source
+	text := "---\r\nid: 20261021120000\r\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\r\n---\r\nBody text.\r\n\r\n" + source
 	root := collectionWith(t, map[string]string{"notes/First note.md": text})
 	p := build(t, root)
 	if len(p.Edits) != 0 || len(p.Refused) != 1 {
@@ -360,13 +466,13 @@ func TestCRLFNoteRefused(t *testing.T) {
 
 func TestApplyRefusesAChangedFile(t *testing.T) {
 	root := collectionWith(t, map[string]string{
-		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"Type/idea\", \"status/open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
+		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
 	})
 	p := build(t, root)
 	if len(p.Edits) == 0 {
 		t.Fatal("no edits")
 	}
-	changed := "---\nid: 20261021120000\ntags: [\"Type/idea\", \"status/open\", \"category/direction\"]\n---\nEdited meanwhile.\n\n" + source
+	changed := "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\n---\nEdited meanwhile.\n\n" + source
 	if err := os.WriteFile(filepath.Join(root, "notes", "First note.md"), []byte(changed), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -388,10 +494,10 @@ func TestCleanCollectionPlansNothing(t *testing.T) {
 
 func TestFileModeKept(t *testing.T) {
 	root := collectionWith(t, map[string]string{
-		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"Type/idea\", \"status/open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
+		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
 	})
 	path := filepath.Join(root, "notes", "First note.md")
-	if err := os.Chmod(path, 0o600); err != nil {
+	if err := os.Chmod(path, 0o640); err != nil {
 		t.Fatal(err)
 	}
 	if err := build(t, root).Apply(root); err != nil {
@@ -401,7 +507,105 @@ func TestFileModeKept(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if info.Mode().Perm() != 0o640 {
 		t.Errorf("mode = %v", info.Mode())
+	}
+}
+
+// twoFileCollection needs a note fix and a README fix.
+func twoFileCollection(t *testing.T) (root string, p *Plan) {
+	t.Helper()
+	root = collectionWith(t, map[string]string{
+		"notes/First note.md": "---\nid: 20261021120000\ntags: [\"type/idea\", \"status/Open\", \"category/direction\"]\n---\nBody text.\n\n" + source,
+		"README.md":           "[a](DOCS/guide.md)\n",
+		"docs/guide.md":       "x\n",
+	})
+	p = build(t, root)
+	if len(p.Edits) != 2 {
+		t.Fatalf("edits = %+v", p.Edits)
+	}
+	return root, p
+}
+
+func TestApplyWritesNothingWhenADirectoryIsReadOnly(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory modes")
+	}
+	root, p := twoFileCollection(t)
+	readme, note := read(t, root, "README.md"), read(t, root, "notes/First note.md")
+	if err := os.Chmod(filepath.Join(root, "notes"), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(filepath.Join(root, "notes"), 0o755)
+	err := p.Apply(root)
+	var werr *WriteError
+	if !errors.As(err, &werr) || len(werr.NotWritten) != 2 || len(werr.Written) != 0 {
+		t.Fatalf("err = %v", err)
+	}
+	if read(t, root, "README.md") != readme || read(t, root, "notes/First note.md") != note {
+		t.Error("a file was written")
+	}
+}
+
+func TestApplyRestoresWhenALaterWriteFails(t *testing.T) {
+	root, p := twoFileCollection(t)
+	readme, note := read(t, root, "README.md"), read(t, root, "notes/First note.md")
+	calls := 0
+	renameFile = func(from, to string) error {
+		calls++
+		if calls == 2 {
+			return errors.New("disk full")
+		}
+		return os.Rename(from, to)
+	}
+	defer func() { renameFile = os.Rename }()
+	err := p.Apply(root)
+	var werr *WriteError
+	if !errors.As(err, &werr) || len(werr.Restored) != 1 || werr.Restored[0] != "README.md" ||
+		len(werr.NotWritten) != 1 || len(werr.Written) != 0 || !strings.Contains(err.Error(), "disk full") {
+		t.Fatalf("err = %v", err)
+	}
+	if read(t, root, "README.md") != readme || read(t, root, "notes/First note.md") != note {
+		t.Error("files were not restored")
+	}
+	left, _ := filepath.Glob(filepath.Join(root, "notes", ".cscribe-fix-*"))
+	if len(left) != 0 {
+		t.Errorf("temp files left: %v", left)
+	}
+}
+
+func TestApplyRefusesASymlinkSwappedInAfterThePlan(t *testing.T) {
+	root, p := twoFileCollection(t)
+	path := filepath.Join(root, "notes", "First note.md")
+	copyPath := filepath.Join(root, "copy.md")
+	if err := os.Rename(path, copyPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(copyPath, path); err != nil {
+		t.Fatal(err)
+	}
+	err := p.Apply(root)
+	if err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Contains(read(t, root, "copy.md"), "status/open") {
+		t.Error("wrote through the symlink")
+	}
+}
+
+func TestApplyRefusesADirectorySwappedForASymlink(t *testing.T) {
+	root, p := twoFileCollection(t)
+	if err := os.Rename(filepath.Join(root, "notes"), filepath.Join(root, "real-notes")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "real-notes"), filepath.Join(root, "notes")); err != nil {
+		t.Fatal(err)
+	}
+	err := p.Apply(root)
+	if err == nil || !strings.Contains(err.Error(), "leaves the collection") {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Contains(read(t, root, "real-notes/First note.md"), "status/open") {
+		t.Error("wrote through the symlinked directory")
 	}
 }
