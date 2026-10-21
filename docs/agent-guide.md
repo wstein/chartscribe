@@ -11,7 +11,7 @@ ChartScribe itself, use [llms.txt](../llms.txt) instead.
 ChartScribe is a Go CLI, `cscribe`, for plain-text Zettelkasten collections. A
 collection has a `notes/` folder of Markdown files, one idea per file. The
 implemented commands besides `version` are `cscribe validate` (alias `lint`), which
-checks every rule of the note format without network access and without writing, and
+checks every rule of the note format without network access and without writing (unless `--fix --apply`), and
 `cscribe init`, which writes tool configuration (see below), and the native note commands
 `new`, `list`, `tags`, `links`, `backlinks`, `export` and the `tracking` command (see below). Further commands are specified in [specs/001-note-tooling](../specs/001-note-tooling/spec.md)
 and are not implemented yet.
@@ -66,6 +66,12 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
 3. Fix every finding (`<note>: <message>` on stderr). `cscribe --json validate` gives the same findings as one
    JSON document; `--rule <name>` limits the output to a rule.
 4. Repeat until it exits 0.
+
+`cscribe validate --fix` plans the safe fixes (tag case and duplicates, scalar `tags`/`aliases`, a malformed id
+with one certain value, a note missing from the only map of its category, a README link that differs in case) and
+prints each exact edit; it writes nothing. Show the human the plan, then run `cscribe validate --fix --apply`. Only
+frontmatter and map or README link lines change, never a note body. Fixes that do not validate better are listed as
+refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`, ...) needs your judgement.
 
 ## Creating and finding notes
 
