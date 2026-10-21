@@ -28,6 +28,7 @@ commands of the [spec](specs/001-note-tooling/spec.md) follow in later slices.
 ```text
 cscribe [--root DIR] [--json] validate [--rule NAME]...
 cscribe lint ...                 (alias of validate)
+cscribe [--root DIR] [--json] validate --fix [--apply] [--rule NAME]...
 cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--overwrite PATH|all]
 cscribe [--root DIR] [--json] new TITLE [--tag TAG]...
 cscribe [--root DIR] [--json] list [--tag TAG]
@@ -39,7 +40,7 @@ cscribe version
 ```
 
 `validate` checks `notes/*.md` and `README.md` of a collection against the
-[rules](specs/001-note-tooling/contracts/validate-rules.md); it only reads files. The root is `--root`,
+[rules](specs/001-note-tooling/contracts/validate-rules.md); it only reads files unless `--fix --apply` is given. The root is `--root`,
 else the nearest directory with a `notes/` folder. Findings go to stderr as `<note>: <message>`,
 the summary `validate: <N> notes, <M> findings` to stdout; `--json` writes one document to stdout
 ([contract](specs/001-note-tooling/contracts/validate-output.md)). Exit status: 0 clean, 1 findings,
@@ -51,6 +52,15 @@ type = ["idea", "decision"]
 status = ["open", "done"]
 category = ["direction", "state"]
 ```
+
+`validate --fix` plans the safe fixes of the findings and prints each exact edit (`file:line [rule]`, `-` old
+and `+` new lines; `--json` adds a `fix` object); nothing is written until `--apply` is added. A fix is
+planned only when one value is certain, and it is kept only if re-running validate on the result shows fewer
+findings and no new one; otherwise the file is listed as refused. Note bodies stay byte-identical: only
+frontmatter fields and the link lines of a map or of `README.md` change. Files are written through a temporary
+file and a rename inside the collection; symlinks, files with CR line endings and files changed since the plan
+are refused. A second run plans nothing. Fixable rules and the rules that are deliberately not fixed:
+[validate rules](specs/001-note-tooling/contracts/validate-rules.md#fixes).
 
 `init` prints a plan for the zk, Obsidian and Quartz configuration files (one line per file: `write`,
 `exists (skipped)`, `differs (skipped)` or `overwrite`) and writes nothing. `--apply` writes the files that

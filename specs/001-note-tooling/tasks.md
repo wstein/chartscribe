@@ -70,4 +70,4 @@ TDD order: in each group the test task comes first and fails before its implemen
 
 ## Slice 5 - optional (MCP deferred until slices 1-4 are in use)
 
-- [ ] T501 `validate --fix` for safe findings (plan by default), body hash unchanged.
+- [x] T501 `validate --fix` for safe findings (plan by default), body hash unchanged.

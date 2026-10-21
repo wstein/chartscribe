@@ -50,6 +50,28 @@ flow lists (`["a", "b"]`, `[a, b]`, `[]`) and block lists (`- item`), `#` commen
 Markdown links in notes are not checked. Wikilinks inside code blocks are checked like any other
 (same as the reference); a later spec may change that.
 
+## Fixes
+
+`validate --fix` (plan) and `validate --fix --apply` (write) fix a finding only when one value is certain. Each
+fix is verified: validate runs again on the result, and the fix is kept only if the findings drop and none is new.
+Only frontmatter fields and the link lines of a map or of `README.md` change; the note body stays byte-identical.
+
+| Rule | Fix |
+| --- | --- |
+| `id-invalid` | an id of exactly 14 digits with `-`, `:`, `_`, space or `T` between them that is a real date and time becomes the 14 digits, unless another note has it |
+| `list-type` | a scalar `tags` (one tag without space or comma) or `aliases` (one alias without comma) becomes a one-item list |
+| `tag-invalid` | a `type/`, `status/` or `category/` tag whose lower-case value is in the vocabulary is lower-cased; a leading `#` is dropped |
+| `tag-count` | exact duplicates (after the same normalisation) are removed |
+| `name-duplicate` | an alias equal to its own title, or repeated in the same note, is removed |
+| `map-unlisted` | `- [[Title]]` is appended to the one map of the note's category, only when the note has exactly one category tag and exactly one map has it |
+| `readme-link` | a broken relative link is rewritten when exactly one path matches after ignoring case, one component at a time; the `#anchor` stays |
+
+Not fixed, because no single value is certain or the fix needs a decision: `frontmatter`, `field-unknown`,
+`id-missing` (no id can be derived), `id-duplicate`, `title-char`, `source-missing`, `wikilink-unresolved`,
+`map-multiple`, `map-category`, `map-duplicate`, `category-no-map`, a missing `tags` or `aliases` field (adding
+`tags: []` would trade one finding for three `tag-count` findings; a missing `aliases` is no finding), and list
+formatting or ordering (no finding names it, so nothing changes). A list that is rewritten is written as `["a", "b"]`.
+
 ## Tracking section
 
 A note may end with a generated section written by `cscribe tracking`: it starts at the line `## Tracking`
