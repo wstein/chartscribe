@@ -8,7 +8,7 @@ cscribe [--root DIR] [--json] init [--tool zk|obsidian|quartz]... [--apply] [--o
 - `--apply`: write every file that does not exist. An existing file is never touched unless `--overwrite PATH` names it (or `all`).
 - Root: `--root`, else the nearest directory with a `notes/` folder, else the working directory (an empty directory works); `init` does not create `notes/`.
 - No `--tool`: all three. Paths are relative to the collection root. Directories are created as needed.
-- A rerun after `--apply` plans nothing to write. `--json` prints `{"version":1,"command":"init","files":[{"path","action"}]}`.
+- A rerun after `--apply` plans nothing to write. `--json` prints `{"version":1,"command":"init","root","workflowVersion"(only with quartz),"files":[{"path","action"}]}`.
 - `init` writes files only: it starts no tool and installs no plugin. Existing JSON config is not merged (open point).
 - Keys below were checked online (see Verification); embedded file text carries no private path or name.
 

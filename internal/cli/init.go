@@ -45,6 +45,9 @@ var buildVersion = func() string {
 // version, then the VCS revision; "" means this build knows none.
 func pickVersion(ldflags, module, revision string) string {
 	for _, v := range []string{ldflags, module} {
+		if strings.HasSuffix(v, "+dirty") {
+			return "" // a dirty tree has no version go install can fetch
+		}
 		if v != "" && v != "dev" && v != "(devel)" {
 			return v
 		}
