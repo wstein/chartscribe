@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "command": "tags",
+  "ok": true,
+  "tags": [
+    {
+      "tag": "alpha",
+      "count": 2
+    },
+    {
+      "tag": "category/direction",
+      "count": 2
+    },
+    {
+      "tag": "category/state",
+      "count": 2
+    },
+    {
+      "tag": "status/open",
+      "count": 2
+    },
+    {
+      "tag": "type/idea",
+      "count": 2
+    },
+    {
+      "tag": "type/map",
+      "count": 2
+    }
+  ]
+}

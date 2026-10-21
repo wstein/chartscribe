@@ -134,5 +134,6 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(validateCommand(opts))
 	root.AddCommand(initCommand(opts))
 	root.AddCommand(newCommand(opts))
+	root.AddCommand(listCommand(opts), tagsCommand(opts), linksCommand(opts), backlinksCommand(opts))
 	return root
 }

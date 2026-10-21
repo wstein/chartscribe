@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "command": "links",
+  "ok": true,
+  "note": {
+    "id": "20261021120001",
+    "title": "Second note",
+    "path": "notes/Second note.md",
+    "tags": [
+      "type/idea",
+      "status/open",
+      "category/state",
+      "alpha"
+    ]
+  },
+  "links": [
+    {
+      "target": "Primus",
+      "resolved": true,
+      "id": "20261021120000",
+      "title": "First note",
+      "path": "notes/First note.md"
+    }
+  ],
+  "unresolved": 0
+}
