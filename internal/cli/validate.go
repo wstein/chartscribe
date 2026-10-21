@@ -172,9 +172,12 @@ func jsonUsageError(root *cobra.Command, args []string, stdout io.Writer, err er
 		return false
 	}
 	target, _, ferr := root.Find(args)
-	if ferr != nil || target == nil || (target.Name() != "validate" && target.Name() != "init") {
+	if ferr != nil || target == nil || (!jsonCommands[target.Name()]) {
 		return false
 	}
 	doc := errorDocument{Version: 1, Command: target.Name(), OK: false, Error: "usage", Message: err.Error()}
 	return writeJSON(stdout, doc) == nil
 }
+
+// jsonCommands are the commands whose usage errors are reported as JSON under --json.
+var jsonCommands = map[string]bool{"validate": true, "init": true, "new": true, "list": true, "tags": true, "links": true, "backlinks": true}
