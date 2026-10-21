@@ -94,8 +94,21 @@ func selected(tools []Tool, t Tool) bool {
 	return false
 }
 
-func noteTemplate(id string) string {
-	return "---\nid: " + id + "\naliases: []\ntags: []\n---\n\n## Links\n\nSource:\n"
+func noteTemplate(id string) string { return NoteText(id, nil) }
+
+// NoteText is the text of a new note: the template with a concrete id and tags
+// (an empty list when none), the Links heading and an empty Source line.
+func NoteText(id string, tags []string) string {
+	list := "[]"
+	if len(tags) > 0 {
+		list = jsonList(tags)
+	}
+	return "---\nid: " + id + "\naliases: []\ntags: " + list + "\n---\n\n## Links\n\nSource:\n"
+}
+
+func jsonList(items []string) string {
+	b, _ := json.Marshal(items)
+	return strings.ReplaceAll(string(b), `","`, `", "`)
 }
 
 func jsonString(s string) string {

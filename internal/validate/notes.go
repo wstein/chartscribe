@@ -4,14 +4,11 @@ package validate
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/wstein/chartscribe/internal/collection"
 	"github.com/wstein/chartscribe/internal/note"
 )
-
-var forbiddenTitle = regexp.MustCompile(`[\\/:*?"<>|]`)
 
 // parsedNote is a note whose frontmatter parsed.
 type parsedNote struct {
@@ -40,7 +37,7 @@ func (n parsedNote) category() (string, bool) {
 func (c *checker) notes(files []collection.File) {
 	for _, f := range files {
 		title := f.Title()
-		if forbiddenTitle.MatchString(title) {
+		if note.ForbiddenTitle.MatchString(title) {
 			c.add("title-char", f.Name, `forbidden character in the title (one of \ / : * ? " < > |)`)
 		}
 		fm, rawBody, err := note.Parse(f.Text)
