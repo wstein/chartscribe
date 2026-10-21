@@ -1,0 +1,70 @@
+# Proposal: publishes the notes with Quartz 4.5.2 to GitHub Pages.
+# Set baseUrl in .quartz/settings.json and enable Pages (source: GitHub Actions) first.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Validate the notes
+        run: go install github.com/wstein/chartscribe/cmd/cscribe@main && "$(go env GOPATH)/bin/cscribe" validate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jackyzha0/quartz
+          ref: 4923affa7722dfc751f1074348e6dad214fe0c08
+          path: quartz
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Copy the notes and apply the settings
+        run: |
+          set -euo pipefail
+          rm -rf quartz/content && mkdir quartz/content
+          cp -r notes quartz/content/notes
+          cp .quartz/index.md quartz/content/index.md
+          node -e '
+            const fs = require("fs");
+            const s = JSON.parse(fs.readFileSync(".quartz/settings.json", "utf8"));
+            const f = "quartz/quartz.config.ts";
+            let t = fs.readFileSync(f, "utf8");
+            t = t.replace(/pageTitle: "[^"]*"/, "pageTitle: " + JSON.stringify(s.pageTitle))
+                 .replace(/baseUrl: "[^"]*"/, "baseUrl: " + JSON.stringify(s.baseUrl))
+                 .replace(/analytics: \{[^}]*\}/, "analytics: null");
+            fs.writeFileSync(f, t);
+          '
+      - name: Build
+        working-directory: quartz
+        run: npm ci && npx quartz build
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: quartz/public
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

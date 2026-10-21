@@ -1,0 +1,9 @@
+[note]
+filename = "{{title}}"
+extension = "md"
+template = "note.md"
+exclude = ["templates/**", "README.md"]
+
+[format.markdown]
+link-format = "wiki"
+hashtags = false
