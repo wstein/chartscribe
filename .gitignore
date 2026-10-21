@@ -1,0 +1,21 @@
+# Local executables and build output
+/cscribe
+/bin/
+/dist/
+/coverage.out
+*.test
+*.prof
+
+# zk notebook index
+.zk/notebook.db
+
+# Local configuration and editor state
+/.vscode/
+/.idea/
+.env
+.env.*
+!.env.example
+*.swp
+*.swo
+*~
+.DS_Store
