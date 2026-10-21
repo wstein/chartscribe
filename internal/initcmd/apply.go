@@ -170,6 +170,10 @@ func createNew(full, text string) error {
 }
 
 func replace(full, text string) error {
+	mode := os.FileMode(0o644)
+	if info, err := os.Lstat(full); err == nil {
+		mode = info.Mode().Perm()
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(full), ".cscribe-init-*")
 	if err != nil {
 		return err
@@ -180,7 +184,7 @@ func replace(full, text string) error {
 		tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(mode); err != nil {
 		tmp.Close()
 		return err
 	}
