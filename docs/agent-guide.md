@@ -76,6 +76,7 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
   `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
   ([query output](../specs/001-note-tooling/contracts/query-output.md)). `links` prints `unresolved` for a target
   that names no note; `validate` is the check that fails on it.
+- Known limitation: `new` does not detect titles that differ only in Unicode normalization (NFC/NFD); such titles collide on macOS.
 
 ## Linking notes to issues
 
