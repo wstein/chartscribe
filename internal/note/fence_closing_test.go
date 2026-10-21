@@ -64,6 +64,9 @@ func TestListContinuationFence(t *testing.T) {
 		{"unclosed to the end", "- item\n\n  ```\n  l\n  m", []bool{false, false, true, true, true}, true},
 		{"closer at 4 spaces is relative 2", "- item\n\n  ```\n  l\n    ```\ntext", []bool{false, false, true, true, true, false}, false},
 		{"top-level fence stays top-level", "text\n\n  ```\n  l\n```\nafter", []bool{false, false, true, true, true, false}, false},
+		// After "para" the item has ended, so the fence is top level and a closer
+		// indented 4 spaces is not a closer; inside the item (rel. 2) it would be.
+		{"a less indented line ends the item", "- item\n\npara\n\n  ```\n  l\n    ```\ntext", []bool{false, false, false, false, true, true, true, true}, true},
 		{"fence after the list ended", "- item\n\npara\n\n  ```\n  l\n  ```", []bool{false, false, false, false, true, true, true}, false},
 	}
 	for _, tt := range tests {
