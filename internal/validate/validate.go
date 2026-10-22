@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/wstein/chartscribe/internal/collection"
+	"github.com/wstein/chartscribe/internal/note"
 )
 
 // Rules lists the rule names in contract order.
@@ -16,7 +17,12 @@ var Rules = []string{
 	"frontmatter", "field-unknown", "id-missing", "id-invalid", "id-duplicate", "list-type", "tag-invalid", "tag-count",
 	"title-char", "name-duplicate", "source-missing", "wikilink-unresolved", "map-unlisted", "map-multiple", "map-category",
 	"map-duplicate", "category-no-map", "readme-link",
+	"source-kind-unknown", "source-malformed", "source-file-missing", "source-not-file", "source-range-invalid", "source-outside-root",
 }
+
+// WarningRules lists the rules that report warnings, not findings: they never
+// change the exit status. source-stale is produced by internal/stale, not by Run.
+var WarningRules = []string{"source-stale"}
 
 // Finding is one rule violation. Note is the file name; it is empty for a
 // collection-level finding.
@@ -30,6 +36,25 @@ type Finding struct {
 type Result struct {
 	Notes    int
 	Findings []Finding
+	// Sources lists the parsed Source lines of every note that is not a map and
+	// whose frontmatter parsed, in file order (notes without a Source line are left out).
+	Sources []NoteSources
+}
+
+// NoteSources is the parsed Source lines of one note.
+type NoteSources struct {
+	Note    string // file name
+	Sources []note.Source
+}
+
+// Options switch on the opt-in checks of RunWith.
+type Options struct {
+	// CheckSources verifies that each cited file (kinds file and measurement) exists
+	// below SourceRoot, is a regular file and, for lines A-B, that the range is real.
+	CheckSources bool
+	// SourceRoot is the directory source paths are relative to; "" means
+	// collection.DefaultSourceRoot of the collection root.
+	SourceRoot string
 }
 
 // Overlay replaces the text of files read from disk, so a candidate result can
@@ -43,6 +68,14 @@ func Run(root string) (Result, error) { return RunOverlay(root, nil) }
 
 // RunOverlay is Run with the files named in overlay read from it instead of from disk.
 func RunOverlay(root string, overlay Overlay) (Result, error) {
+	return RunWith(root, overlay, Options{})
+}
+
+// RunWith is RunOverlay with the opt-in checks of opts.
+func RunWith(root string, overlay Overlay, opts Options) (Result, error) {
+	if opts.CheckSources && opts.SourceRoot == "" {
+		opts.SourceRoot = collection.DefaultSourceRoot(root)
+	}
 	vocab, err := collection.LoadVocabulary(root)
 	if err != nil {
 		return Result{}, err
@@ -56,7 +89,7 @@ func RunOverlay(root string, overlay Overlay) (Result, error) {
 			files[i].Text = text
 		}
 	}
-	c := &checker{vocab: vocab, overlay: overlay}
+	c := &checker{vocab: vocab, overlay: overlay, opts: opts}
 	if err := c.readme(root); err != nil {
 		return Result{}, err
 	}
@@ -64,12 +97,14 @@ func RunOverlay(root string, overlay Overlay) (Result, error) {
 	c.duplicates()
 	c.wikilinks()
 	c.maps()
-	return Result{Notes: len(files), Findings: sortUnique(c.findings)}, nil
+	return Result{Notes: len(files), Findings: sortUnique(c.findings), Sources: c.sources}, nil
 }
 
 type checker struct {
 	vocab    collection.Vocabulary
 	overlay  Overlay
+	opts     Options
+	sources  []NoteSources
 	findings []Finding
 
 	parsed []parsedNote // notes whose frontmatter parsed, in file order
