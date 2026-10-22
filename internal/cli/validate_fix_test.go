@@ -162,3 +162,22 @@ func TestFixApplyFailureNamesTheFiles(t *testing.T) {
 		t.Errorf("%d %q", code, errOut)
 	}
 }
+
+// validate --fix fixes the frontmatter and leaves typed Source lines (valid or not) byte for byte.
+func TestFixLeavesTypedSourceLinesAlone(t *testing.T) {
+	root := fixCollection(t)
+	path := filepath.Join(root, "notes", "First note.md")
+	data, _ := os.ReadFile(path)
+	typed := "Source: decision: keep it, 2026-10-22\nSource: url: https://example.org/x\nSource: measurement: data/run.csv, p95\nSource: note: unknown kind\nSource: decision: no date\n"
+	text := strings.Replace(string(data), fixSource, typed, 1)
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errOut := run("--root", root, "validate", "--fix", "--apply"); code != 1 || !strings.Contains(errOut, "Source") {
+		t.Errorf("exit = %d %q", code, errOut)
+	}
+	after, _ := os.ReadFile(path)
+	if !strings.Contains(string(after), typed) || strings.Contains(string(after), "status/Open") {
+		t.Errorf("after:\n%s", after)
+	}
+}

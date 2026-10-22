@@ -114,7 +114,7 @@ func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Resul
 			}
 			if t := commitTime(abs); t > noteTime {
 				res.Warnings = append(res.Warnings, Warning{Rule: Rule, Note: n.Note, Message: fmt.Sprintf(
-					"%s source %q has a commit (%s) newer than the last commit of this note (%s); check what it cites",
+					"%s %q has a commit (%s) newer than the last commit of this note (%s); check what it cites",
 					kindWord(s), s.Path, day(t), day(noteTime))})
 			}
 		}

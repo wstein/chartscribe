@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wstein/chartscribe/internal/collection"
 	"github.com/wstein/chartscribe/internal/fix"
+	"github.com/wstein/chartscribe/internal/stale"
 	"github.com/wstein/chartscribe/internal/validate"
 )
 
@@ -34,6 +35,9 @@ type validateDocument struct {
 	OK       bool          `json:"ok"`
 	Notes    int           `json:"notes"`
 	Findings []jsonFinding `json:"findings"`
+	// Warnings (source-stale) never change ok or the exit status; present only when there is one.
+	Warnings []jsonFinding `json:"warnings,omitempty"`
+	Skipped  string        `json:"skipped,omitempty"`
 	Fix      *fixDocument  `json:"fix,omitempty"`
 }
 
@@ -90,13 +94,19 @@ func failure(cmd *cobra.Command, opts *globalOptions, code int, kind string, err
 
 func validateCommand(opts *globalOptions) *cobra.Command {
 	var rules []string
-	var fixFlag, apply bool
+	var fixFlag, apply, checkSources, gitFlag bool
 	cmd := &cobra.Command{
 		Use:     "validate",
 		Aliases: []string{"lint"},
 		Short:   "Check the collection against the note rules",
 		Long: `Check every note of the collection against the note rules and report each finding with
 the rule name, the note and a message. Files are only read: no network, no write.
+
+--check-sources also verifies that each cited file (Source lines of kind file and measurement)
+exists below the source root, is a regular file and, for "lines A-B", that the range is real;
+decision and url sources are never fetched. --check-sources --git also warns (source-stale; never
+an error, exit status unchanged) when a cited file has a commit newer than the note, using read-only git.
+.cscribe.toml keys: source_root, check_sources, check_stale.
 
 Findings go to stderr, the summary to stdout; with --json one document goes to stdout.
 
@@ -108,10 +118,13 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, r := range rules {
-				if !contains(validate.Rules, r) {
+				if !contains(validate.Rules, r) && !contains(validate.WarningRules, r) {
 					return failure(cmd, opts, exitUsage, "usage",
-						fmt.Errorf("unknown rule %q (known: %s)", r, strings.Join(validate.Rules, ", ")))
+						fmt.Errorf("unknown rule %q (known: %s)", r, strings.Join(append(append([]string{}, validate.Rules...), validate.WarningRules...), ", ")))
 				}
+			}
+			if fixFlag && checkSources {
+				return failure(cmd, opts, exitUsage, "usage", errors.New("--check-sources cannot be combined with --fix"))
 			}
 			if apply && !fixFlag {
 				return failure(cmd, opts, exitUsage, "usage", errors.New("--apply needs --fix"))
@@ -127,15 +140,29 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
+			cfg, err := collection.LoadConfig(root)
+			if err != nil {
+				return failure(cmd, opts, exitEnv, "io", err)
+			}
 			if fixFlag {
 				return runFix(cmd, opts, root, rules, apply)
 			}
-			res, err := validate.Run(root)
+			check := checkSources || cfg.CheckSources
+			if gitFlag && !check {
+				return failure(cmd, opts, exitUsage, "usage", errors.New("--git needs --check-sources (or check_sources = true)"))
+			}
+			srcRoot := collection.ResolveSourceRoot(root, cfg)
+			res, err := validate.RunWith(root, nil, validate.Options{CheckSources: check, SourceRoot: srcRoot})
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
 			findings := filterRules(res.Findings, rules)
-			if err := printValidate(cmd, opts, res.Notes, findings); err != nil {
+			var st *stale.Result
+			if check && (gitFlag || cfg.CheckStale) {
+				r := stale.Check(root, srcRoot, res.Sources, stale.ExecRunner)
+				st = &r
+			}
+			if err := printValidate(cmd, opts, res.Notes, findings, st, rules); err != nil {
 				return runtimeFailure{err}
 			}
 			if len(findings) > 0 {
@@ -146,6 +173,8 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 	}
 	cmd.Flags().StringSliceVar(&rules, "rule", nil, "Limit the output to this rule (repeatable or comma-separated)")
 	cmd.Flags().BoolVar(&fixFlag, "fix", false, "Plan the safe fixes of the findings (writes nothing without --apply)")
+	cmd.Flags().BoolVar(&checkSources, "check-sources", false, "Verify that cited files exist and that their line ranges are real")
+	cmd.Flags().BoolVar(&gitFlag, "git", false, "With --check-sources: warn about cited files with a commit newer than the note (read-only git)")
 	cmd.Flags().BoolVar(&apply, "apply", false, "With --fix: write the planned fixes")
 	return cmd
 }
@@ -172,11 +201,27 @@ func filterRules(in []validate.Finding, rules []string) []validate.Finding {
 	return out
 }
 
-func printValidate(cmd *cobra.Command, opts *globalOptions, notes int, findings []validate.Finding) error {
+// printValidate writes the findings and, when st is not nil (the staleness check ran), its
+// warnings or its skip message. Warnings are filtered by --rule like findings.
+func printValidate(cmd *cobra.Command, opts *globalOptions, notes int, findings []validate.Finding, st *stale.Result, rules []string) error {
+	var warnings []stale.Warning
+	if st != nil {
+		for _, w := range st.Warnings {
+			if len(rules) == 0 || contains(rules, w.Rule) {
+				warnings = append(warnings, w)
+			}
+		}
+	}
 	if opts.json {
 		doc := validateDocument{Version: 1, Command: "validate", OK: len(findings) == 0, Notes: notes, Findings: []jsonFinding{}}
 		for _, f := range findings {
 			doc.Findings = append(doc.Findings, jsonFinding{Rule: f.Rule, Note: f.Note, Message: f.Message})
+		}
+		for _, w := range warnings {
+			doc.Warnings = append(doc.Warnings, jsonFinding{Rule: w.Rule, Note: w.Note, Message: w.Message})
+		}
+		if st != nil {
+			doc.Skipped = st.Skipped
 		}
 		return writeJSON(cmd.OutOrStdout(), doc)
 	}
@@ -189,7 +234,21 @@ func printValidate(cmd *cobra.Command, opts *globalOptions, notes int, findings 
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "validate: %d notes, %d findings\n", notes, len(findings))
+	for _, w := range warnings {
+		if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %s\n", w.Note, w.Message); err != nil {
+			return err
+		}
+	}
+	if st != nil && st.Skipped != "" {
+		if _, err := fmt.Fprintln(cmd.ErrOrStderr(), st.Skipped); err != nil {
+			return err
+		}
+	}
+	summary := fmt.Sprintf("validate: %d notes, %d findings", notes, len(findings))
+	if st != nil && st.Skipped == "" {
+		summary += fmt.Sprintf(", %d warnings", len(warnings))
+	}
+	_, err := fmt.Fprintln(cmd.OutOrStdout(), summary)
 	return err
 }
 
