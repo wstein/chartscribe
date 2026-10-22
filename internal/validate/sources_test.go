@@ -3,6 +3,8 @@
 package validate
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -93,4 +95,139 @@ func TestCheckSourcesDoesNotWrite(t *testing.T) {
 	if treeHash(t, root) != before {
 		t.Error("RunWith changed the tree")
 	}
+}
+
+const legacyLine = "Source: IDEAS_NOTES.md §1. Direction, lines 1-5"
+
+// Reviewer repro 1: prose that looks like a kind above a valid legacy line was accepted before and still is.
+func TestKindLikeProseNextToLegacyLineIsAccepted(t *testing.T) {
+	root := newFixture(t)
+	edit(t, root, "First note", legacyLine, "Source: Wikipedia: prose\n"+legacyLine)
+	assertClean(t, root)
+	edit(t, root, "First note", "Source: Wikipedia: prose\n", "Source: decision: no date\n")
+	assertClean(t, root) // the earlier rule accepted this note, so nothing new is reported
+}
+
+// Reviewer repro 2: a fenced example is not a Source line, and its path is not checked.
+func TestFencedSourceExamplesAreIgnored(t *testing.T) {
+	root := newFixture(t)
+	edit(t, root, "First note", "Body text.", "Body text.\n\n```\nSource: Foo: bar\nSource: nowhere/x.rs, lines 9-9\n```")
+	assertClean(t, root)
+	res, err := RunWith(root, nil, Options{CheckSources: true, SourceRoot: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range res.Findings {
+		if strings.Contains(f.Message, "nowhere") {
+			t.Errorf("fenced example was checked: %v", f)
+		}
+	}
+}
+
+func TestUnknownKindIsReportedOnlyWhereTheNoteWasRejected(t *testing.T) {
+	root := newFixture(t)
+	edit(t, root, "First note", legacyLine, "Source: note: foo")
+	fs := check(t, root)
+	if !has(fs, "source-kind-unknown", "First note.md") || has(fs, "source-missing", "First note.md") {
+		t.Errorf("got %v", fs)
+	}
+}
+
+// The ticket repro cases (#15, #16).
+func TestTicketCases(t *testing.T) {
+	root := newFixture(t)
+	if err := os.WriteFile(filepath.Join(root, "real.md"), []byte("one line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct{ line, rule string }{
+		{"Source: does/not/exist.rs, lines 900-999", "source-file-missing"},
+		{"Source: real.md, lines 500-600", "source-range-invalid"},
+		{"Source: https://example.com/x, lines 1-1", "source-malformed"},
+		{"Source: https://example.com/x", ""},
+		{"Source: decision 2026-10-21 the owner", ""},
+		{"Source: measurement cargo bench 2026-10-21", ""},
+		{"Source: measurement real.md 2026-10-21", ""},
+		{"Source: measurement nowhere/data.csv 2026-10-21", "source-file-missing"},
+	}
+	for _, tt := range tests {
+		r := copyTree(t, root)
+		edit(t, r, "First note", legacyLine, tt.line)
+		res, err := RunWith(r, nil, Options{CheckSources: true, SourceRoot: r})
+		if err != nil {
+			t.Fatal(err)
+		}
+		fs := []string{}
+		for _, f := range res.Findings {
+			if f.Note == "First note.md" {
+				fs = append(fs, f.Rule)
+			}
+		}
+		want := []string{}
+		if tt.rule != "" {
+			want = []string{tt.rule}
+		}
+		if strings.Join(fs, ",") != strings.Join(want, ",") {
+			t.Errorf("%q: findings %v, want %v", tt.line, fs, want)
+		}
+	}
+	// The URL-with-range message names the reason, also without --check-sources.
+	r := copyTree(t, root)
+	edit(t, r, "First note", legacyLine, "Source: https://example.com/x, lines 1-1")
+	for _, f := range check(t, r) {
+		if f.Rule == "source-malformed" && !strings.Contains(f.Message, "url sources take no line range") {
+			t.Errorf("message = %s", f.Message)
+		}
+	}
+}
+
+// Plain validate gives the findings that cdce0d7 (before typed sources) gave on the real chartroom
+// collection of the Anchorage workspace; the golden is that binary's --json output.
+func TestPlainValidateMatchesTheEarlierBinaryOnChartroom(t *testing.T) {
+	root := os.Getenv("CHARTROOM_DIR")
+	if root == "" {
+		root = "/workspaces/Anchorage/chartroom"
+	}
+	if _, err := os.Stat(filepath.Join(root, "notes")); err != nil {
+		t.Skip("real chartroom collection not found (set CHARTROOM_DIR)")
+	}
+	data, err := os.ReadFile(filepath.Join(fixtureRoot, "main-oracle-chartroom.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want struct {
+		Notes    int
+		Findings []struct{ Rule, Note string }
+	}
+	if err := json.Unmarshal(data, &want); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := pairs(res)
+	exp := []string{}
+	for _, f := range want.Findings {
+		exp = append(exp, f.Rule+"\t"+f.Note)
+	}
+	sort.Strings(exp)
+	if strings.Join(got, "|") != strings.Join(exp, "|") {
+		t.Errorf("findings = %q, golden %q (the collection may have changed since the golden was taken)", got, exp)
+	}
+}
+
+func TestUnconfiguredCategoryMessageExplainsTheConfig(t *testing.T) {
+	root := newFixture(t)
+	edit(t, root, "First note", `"category/direction"`, `"category/billing"`)
+	for _, f := range check(t, root) {
+		if f.Rule == "tag-invalid" {
+			for _, want := range []string{`"billing" is not in the configured category/ vocabulary`, ".cscribe.toml under [tags] category"} {
+				if !strings.Contains(f.Message, want) {
+					t.Errorf("message lacks %q: %s", want, f.Message)
+				}
+			}
+			return
+		}
+	}
+	t.Error("no tag-invalid finding")
 }

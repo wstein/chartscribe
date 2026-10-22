@@ -23,6 +23,13 @@ func TestParseSources(t *testing.T) {
 		{"measurement", "Source: measurement: data/run1.csv", Source{Kind: KindMeasurement, Path: "data/run1.csv"}},
 		{"measurement key", "Source: measurement: data/run1.csv, p95 latency", Source{Kind: KindMeasurement, Path: "data/run1.csv", Key: "p95 latency"}},
 		{"measurement empty", "Source: measurement: ", Source{Kind: KindMeasurement, Malformed: true}},
+		{"bare url", "Source: https://example.com/x", Source{Kind: KindURL, URL: "https://example.com/x"}},
+		{"bare url with a range", "Source: https://example.com/x, lines 1-1", Source{Kind: KindURL, Malformed: true, Why: "url sources take no line range"}},
+		{"bare url with a space", "Source: https://example.com/x y", Source{Kind: KindURL, Malformed: true}},
+		{"decision alias", "Source: decision 2026-10-21 the owner", Source{Kind: KindDecision, Text: "the owner", Date: "2026-10-21"}},
+		{"decision alias bad date", "Source: decision 2026-13-21 the owner", Source{Kind: KindDecision, Malformed: true}},
+		{"measurement alias", "Source: measurement cargo bench --bench x 2026-10-21", Source{Kind: KindMeasurement, Path: "cargo bench --bench x", Date: "2026-10-21"}},
+		{"measurement alias path", "Source: measurement bench/run1.csv 2026-10-21", Source{Kind: KindMeasurement, Path: "bench/run1.csv", Date: "2026-10-21"}},
 		{"unknown kind", "Source: note: foo", Source{Kind: KindUnknown, KindName: "note"}},
 		{"upper-case kind is unknown", "Source: Decision: x, 2026-10-22", Source{Kind: KindUnknown, KindName: "Decision"}},
 	}
@@ -40,7 +47,7 @@ func TestParseSources(t *testing.T) {
 }
 
 func TestParseSourcesIgnoresOtherLines(t *testing.T) {
-	for _, line := range []string{"Source:", "Source: ", "Source: https://example.com", "Source: no form here", "  Source: x, lines 1-2", "source: x, lines 1-2"} {
+	for _, line := range []string{"Source:", "Source: ", "Source: no form here", "  Source: x, lines 1-2", "source: x, lines 1-2"} {
 		if got := ParseSources(line + "\n"); len(got) != 0 {
 			t.Errorf("%q: got %+v", line, got)
 		}
@@ -60,5 +67,23 @@ func TestHasSourceAcceptsTypedForms(t *testing.T) {
 	}
 	if HasSource("Source: decision: x\n") || HasSource("Source: note: x\n") {
 		t.Error("malformed source accepted")
+	}
+}
+
+func TestVerifiableMeasurement(t *testing.T) {
+	for text, want := range map[string]bool{"bench/run1.csv": true, "run.csv": true, "cargo bench --bench x": false, "cargo": false, "-x.csv": false, "": false} {
+		s := Source{Kind: KindMeasurement, Path: text}
+		if got := s.Verifiable(); got != want {
+			t.Errorf("%q: Verifiable = %v, want %v", text, got, want)
+		}
+	}
+}
+
+func TestHasLegacySource(t *testing.T) {
+	if !HasLegacySource("```\nSource: a, lines 1-2\n```\n") {
+		t.Error("a legacy line in a fence still counts, as before")
+	}
+	if HasLegacySource("Source: https://x.org/a, lines 1-2\n") || HasLegacySource("Source: url: https://x.org\n") {
+		t.Error("not a legacy source")
 	}
 }
