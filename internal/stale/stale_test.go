@@ -20,12 +20,20 @@ func notes(name string, srcs ...note.Source) []validate.NoteSources {
 
 func fileSrc(p string) note.Source { return note.Source{Kind: note.KindFile, Path: p, From: 1, To: 1} }
 
+var dirtyOut string // output of the fake `git status`
+
 // fakeGit answers rev-parse with top and log with the time of the last path component.
 func fakeGit(top string, times map[string]string, calls *[][]string) Runner {
 	return func(dir string, args ...string) (string, error) {
 		*calls = append(*calls, args)
-		if args[0] == "rev-parse" {
+		switch args[0] {
+		case "rev-parse":
+			if args[1] == "--is-shallow-repository" {
+				return "false\n", nil
+			}
 			return top + "\n", nil
+		case "status":
+			return dirtyOut, nil
 		}
 		path := strings.TrimPrefix(args[len(args)-1], ":(literal)")
 		return times[path] + "\n", nil
@@ -54,7 +62,7 @@ func TestWarnsWhenTheSourceIsNewer(t *testing.T) {
 	srcs := notes("N.md", fileSrc("docs/a.md"), note.Source{Kind: note.KindMeasurement, Path: "data/m.csv"},
 		note.Source{Kind: note.KindURL, URL: "https://x.org"})
 	res := Check(root, src, srcs, run)
-	if res.Skipped != "" || len(res.Warnings) != 1 {
+	if len(res.Skipped) != 0 || len(res.Warnings) != 1 {
 		t.Fatalf("got %+v", res)
 	}
 	w := res.Warnings[0]
@@ -63,7 +71,7 @@ func TestWarnsWhenTheSourceIsNewer(t *testing.T) {
 		t.Errorf("warning = %+v", w)
 	}
 	for _, c := range calls {
-		if c[0] != "rev-parse" && c[0] != "log" {
+		if c[0] != "rev-parse" && c[0] != "log" && c[0] != "status" {
 			t.Errorf("unexpected git call %v", c)
 		}
 		if c[0] == "log" && !(c[1] == "-1" && c[2] == "--format=%ct" && c[3] == "--") {
@@ -88,7 +96,7 @@ func TestUntrackedFilesAreSkipped(t *testing.T) {
 	var calls [][]string
 	// the note has no commit: nothing to compare
 	run := fakeGit(top, map[string]string{"docs/a.md": "1800000000"}, &calls)
-	if res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run); len(res.Warnings) != 0 || res.Skipped != "" {
+	if res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run); len(res.Warnings) != 0 {
 		t.Errorf("got %+v", res)
 	}
 }
@@ -108,7 +116,7 @@ func TestGitMissingOrNoRepoSkips(t *testing.T) {
 	for name, err := range map[string]error{"missing": exec.ErrNotFound, "norepo": errors.New("fatal: not a git repository")} {
 		run := func(string, ...string) (string, error) { return "", err }
 		res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run)
-		if len(res.Warnings) != 0 || !strings.HasPrefix(res.Skipped, "source-stale skipped: ") {
+		if len(res.Warnings) != 0 || len(res.Skipped) != 1 || !strings.HasPrefix(res.Skipped[0], "source-stale skipped: ") {
 			t.Errorf("%s: got %+v", name, res)
 		}
 	}
@@ -137,10 +145,45 @@ func TestRealGit(t *testing.T) {
 	git("2026-02-01T00:00:00Z", "add", "docs/a.md")
 	git("2026-02-01T00:00:00Z", "commit", "-q", "-m", "source")
 	res := Check(root, src, notes("N.md", fileSrc("docs/a.md"), fileSrc("data/m.csv")), ExecRunner)
-	if res.Skipped != "" || len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0].Message, "2026-02-01") {
+	if len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0], "data/m.csv") || len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0].Message, "2026-02-01") {
 		t.Errorf("got %+v", res)
+	}
+	// A note with uncommitted changes is skipped with its reason, not treated as old.
+	if err := os.WriteFile(filepath.Join(root, "notes", "N.md"), []byte("changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res = Check(root, src, notes("N.md", fileSrc("docs/a.md")), ExecRunner)
+	if len(res.Warnings) != 0 || len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0], "N.md: note has uncommitted changes") {
+		t.Errorf("dirty note: %+v", res)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".git", "index.lock")); err == nil {
 		t.Error("lock file left behind")
+	}
+}
+
+func TestShallowCloneSkips(t *testing.T) {
+	root, src := layout(t)
+	run := func(dir string, args ...string) (string, error) {
+		if args[1] == "--is-shallow-repository" {
+			return "true\n", nil
+		}
+		return root + "\n", nil
+	}
+	res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run)
+	if len(res.Warnings) != 0 || len(res.Skipped) != 1 || res.Skipped[0] != "source-stale skipped: shallow clone (history incomplete)" {
+		t.Errorf("got %+v", res)
+	}
+}
+
+func TestUntrackedNoteIsSkippedWithAReason(t *testing.T) {
+	root, src := layout(t)
+	top, _ := filepath.EvalSymlinks(root)
+	dirtyOut = "?? notes/N.md\x00"
+	defer func() { dirtyOut = "" }()
+	var calls [][]string
+	run := fakeGit(top, map[string]string{"docs/a.md": "1800000000"}, &calls)
+	res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run)
+	if len(res.Warnings) != 0 || len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0], "N.md: note is not committed") {
+		t.Errorf("got %+v", res)
 	}
 }
