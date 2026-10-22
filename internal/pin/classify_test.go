@@ -330,3 +330,51 @@ func TestRandomEditsKeepTheCoreGuarantee(t *testing.T) {
 		}
 	}
 }
+
+// A range that is not a range or does not fit the file is Unknown, never a panic, whether the file is
+// unchanged or changed since the pin.
+func TestInvalidRangesAreUnknown(t *testing.T) {
+	r := newRepo(t)
+	r.Write("same.txt", numbered(20))
+	r.Write("edit.txt", numbered(20))
+	r.Write("empty.txt", "")
+	p := r.Commit("first")[:7]
+	r.Write("edit.txt", "x\n"+numbered(20))
+	r.Write("empty.txt", "")
+	r.Commit("second")
+	ranges := [][2]int{{0, 0}, {0, 3}, {5, 3}, {19, 25}, {21, 21}, {1 << 40, 1 << 41}, {-1, 2}, {1, 1}}
+	var all []note.Source
+	for _, f := range []string{"same.txt", "edit.txt", "empty.txt"} {
+		for _, rg := range ranges {
+			all = append(all, src(f, rg[0], rg[1], p))
+		}
+	}
+	c := classifier(t, r, all...)
+	for _, s := range all {
+		got := c.Classify(s)
+		valid := s.From >= 1 && s.From <= s.To && s.To <= 20 && s.Path != "empty.txt"
+		if valid && got.Status == Unknown || !valid && got.Status != Unknown {
+			t.Errorf("%s %d-%d: got %+v", s.Path, s.From, s.To, got)
+		}
+		if _, why := c.Target(s, ""); valid && why != "" && s.Path != "empty.txt" {
+			t.Errorf("%s %d-%d: Target refused: %s", s.Path, s.From, s.To, why)
+		}
+		if _, why := c.Target(s, p); valid == (why != "") {
+			t.Errorf("%s %d-%d: Target(rev) = %q", s.Path, s.From, s.To, why)
+		}
+	}
+}
+
+// diff.interHunkContext must not widen the hunks.
+func TestInterHunkContextConfigIsIgnored(t *testing.T) {
+	r := newRepo(t)
+	r.Write("a.txt", numbered(12))
+	p := r.Commit("first")[:7]
+	r.Write("a.txt", strings.Replace(strings.Replace(numbered(12), "line 3\n", "x\n", 1), "line 8\n", "y\n", 1))
+	r.Commit("second")
+	r.Git("config", "diff.interHunkContext", "20")
+	s := src("a.txt", 4, 6, p)
+	if got := classifier(t, r, s).Classify(s); got.Status != Current {
+		t.Errorf("got %+v", got)
+	}
+}

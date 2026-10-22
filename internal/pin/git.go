@@ -35,7 +35,7 @@ type ExecGit struct{}
 
 // baseArgs precede every command: they do not depend on the user's git configuration.
 var baseArgs = []string{"--no-pager", "-c", "core.quotepath=off", "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-	"-c", "diff.renames=true", "-c", "color.ui=false", "-c", "diff.external=", "-c", "diff.noprefix=false"}
+	"-c", "diff.renames=true", "-c", "color.ui=false", "-c", "diff.external=", "-c", "diff.noprefix=false", "-c", "diff.interHunkContext=0"}
 
 func command(ctx context.Context, dir string, args []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", append(append([]string{}, baseArgs...), args...)...)

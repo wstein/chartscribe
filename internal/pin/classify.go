@@ -236,6 +236,9 @@ func (c *Classifier) classify(s note.Source) Result {
 	if c.disabled != "" {
 		return unknown("%s", c.disabled)
 	}
+	if s.From < 1 || s.From > s.To {
+		return unknown("lines %d-%d are not a range (1 <= A <= B)", s.From, s.To)
+	}
 	rel, ok := c.rel(s.Path)
 	if !ok {
 		return unknown("the path leaves the source root")
@@ -277,6 +280,14 @@ func (c *Classifier) classify(s note.Source) Result {
 			return unknown("the file does not exist at the pin")
 		}
 	} else {
+		// Unchanged since the pin: the file now is the pinned file, so its length is the pin's.
+		data, err := os.ReadFile(abs)
+		if err != nil {
+			return unknown("the file cannot be read: %v", err)
+		}
+		if n := len(lineSplit(string(data))); s.To > n {
+			return unknown("lines %d-%d lie outside the file at the pin (%d lines)", s.From, s.To, n)
+		}
 		return Result{Status: Current, From: s.From, To: s.To}
 	}
 	// M or T: map the range through the hunks, then check the text itself.
@@ -311,7 +322,7 @@ func (c *Classifier) classify(s note.Source) Result {
 		return unknown("the file cannot be read: %v", err)
 	}
 	cur := lineSplit(string(data))
-	if m.From < 1 || m.To > len(cur) || !equalLines(pinLines[s.From-1:s.To], cur[m.From-1:m.To]) {
+	if m.From < 1 || m.To > len(cur) || s.From < 1 || s.To > len(pinLines) || s.From > s.To || !equalLines(pinLines[s.From-1:s.To], cur[m.From-1:m.To]) {
 		return Result{Status: Changed, Reason: "the text at the mapped lines differs from the pinned text"}
 	}
 	return Result{Status: m.Status, From: m.From, To: m.To}
@@ -339,7 +350,7 @@ func (c *Classifier) renamed(s note.Source, newTop string) Result {
 
 // hunks returns the hunk headers of `git diff -U0 full HEAD -- rel` and whether git calls the file binary.
 func (c *Classifier) hunks(full, rel string) (hunks []Hunk, binary bool, err error) {
-	args := []string{"diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", full, c.head, "--", ":(literal)" + rel}
+	args := []string{"diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--inter-hunk-context=0", full, c.head, "--", ":(literal)" + rel}
 	err = c.git.Stream(c.top, args, '\n', func(line string) {
 		switch {
 		case strings.HasPrefix(line, "@@ "):
@@ -367,6 +378,9 @@ func (c *Classifier) Target(s note.Source, rev string) (short, reason string) {
 	rel, ok := c.rel(s.Path)
 	if !ok {
 		return "", "the path leaves the source root"
+	}
+	if s.From < 1 || s.From > s.To {
+		return "", fmt.Sprintf("lines %d-%d are not a range (1 <= A <= B)", s.From, s.To)
 	}
 	if rev == "" {
 		if p := sourcecheck.Check(c.srcRoot, s); p != nil {
