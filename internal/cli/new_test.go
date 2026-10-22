@@ -42,7 +42,7 @@ func TestNewWritesTheNote(t *testing.T) {
 		t.Errorf("stdout = %q, want %q", out, path+"\n")
 	}
 	data, _ := os.ReadFile(path)
-	want := "---\nid: 20261021093015\naliases: []\ntags: []\n---\n\n## Links\n\nSource:\n"
+	want := "---\nid: 20261021093015\naliases: []\ntags: []\n---\n\n## Links\n\n" + "<!-- Source forms: <path>, lines A-B | decision: <text>, YYYY-MM-DD | url: <https://...> | measurement: <path>[, <key>] -->\nSource:\n"
 	if string(data) != want {
 		t.Errorf("note = %q, want %q", data, want)
 	}

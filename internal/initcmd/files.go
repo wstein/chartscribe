@@ -96,6 +96,10 @@ func selected(tools []Tool, t Tool) bool {
 
 func noteTemplate(id string) string { return NoteText(id, nil) }
 
+// SourceHint is the template comment above the Source line; it names the typed
+// forms. It does not start with "Source:", so it is not a Source line.
+const SourceHint = "<!-- Source forms: <path>, lines A-B | decision: <text>, YYYY-MM-DD | url: <https://...> | measurement: <path>[, <key>] -->"
+
 // NoteText is the text of a new note: the template with a concrete id and tags
 // (an empty list when none), the Links heading and an empty Source line.
 func NoteText(id string, tags []string) string {
@@ -103,7 +107,7 @@ func NoteText(id string, tags []string) string {
 	if len(tags) > 0 {
 		list = jsonList(tags)
 	}
-	return "---\nid: " + id + "\naliases: []\ntags: " + list + "\n---\n\n## Links\n\nSource:\n"
+	return "---\nid: " + id + "\naliases: []\ntags: " + list + "\n---\n\n## Links\n\n" + SourceHint + "\nSource:\n"
 }
 
 func jsonList(items []string) string {
