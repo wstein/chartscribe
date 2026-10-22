@@ -46,12 +46,28 @@ func (e *WriteError) Unwrap() error { return e.Cause }
 // in its own directory and a rename. If a write fails, the files already written are restored from the
 // plan; the error names what was written, restored and not written.
 func (p *Plan) Apply(root string) error {
+	return ApplyFiles(root, p.orig, p.final, func(overlay validate.Overlay) error {
+		res, err := validate.RunOverlay(root, overlay)
+		if err != nil {
+			return err
+		}
+		if !better(p.Before, res.Findings) {
+			return errors.New("the result no longer validates better; run again")
+		}
+		return nil
+	})
+}
+
+// ApplyFiles writes final (slash path relative to root -> new text) over the files whose current text must
+// still be orig, with the guarantees of Plan.Apply. verify sees the result as an overlay before anything is
+// written; its error stops the write and is reported with every file as not written.
+func ApplyFiles(root string, orig, final map[string]string, verify func(validate.Overlay) error) error {
 	rootReal, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return err
 	}
-	files := make([]string, 0, len(p.final))
-	for file := range p.final {
+	files := make([]string, 0, len(final))
+	for file := range final {
 		files = append(files, file)
 	}
 	sort.Strings(files)
@@ -60,18 +76,14 @@ func (p *Plan) Apply(root string) error {
 	}
 	overlay := validate.Overlay{}
 	for _, file := range files {
-		overlay[file] = p.final[file]
+		overlay[file] = final[file]
 	}
-	res, err := validate.RunOverlay(root, overlay)
-	if err != nil {
-		return err
-	}
-	if !better(p.Before, res.Findings) {
-		return &WriteError{Cause: errors.New("the result no longer validates better; run again"), NotWritten: files}
+	if err := verify(overlay); err != nil {
+		return &WriteError{Cause: err, NotWritten: files}
 	}
 	modes := map[string]os.FileMode{}
 	for _, file := range files {
-		mode, err := check(rootReal, file, p.orig[file])
+		mode, err := check(rootReal, file, orig[file])
 		if err != nil {
 			return &WriteError{Cause: fmt.Errorf("%s: %w", file, err), NotWritten: files}
 		}
@@ -79,10 +91,10 @@ func (p *Plan) Apply(root string) error {
 	}
 	var written []string
 	for i, file := range files {
-		if err := writeFile(rootReal, file, p.final[file], modes[file]); err != nil {
+		if err := writeFile(rootReal, file, final[file], modes[file]); err != nil {
 			werr := &WriteError{Cause: fmt.Errorf("%s: %w", file, err), NotWritten: files[i:]}
 			for _, w := range written {
-				if rerr := writeFile(rootReal, w, p.orig[w], modes[w]); rerr != nil {
+				if rerr := writeFile(rootReal, w, orig[w], modes[w]); rerr != nil {
 					werr.Written = append(werr.Written, w)
 				} else {
 					werr.Restored = append(werr.Restored, w)

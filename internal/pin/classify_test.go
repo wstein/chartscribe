@@ -27,7 +27,7 @@ func src(path string, from, to int, pin string) note.Source {
 
 func classifier(t *testing.T, r *repo, sources ...note.Source) *Classifier {
 	t.Helper()
-	c, err := New(ExecGit{}, r.dir, sources)
+	c, err := New(ExecGit{}, r.Dir, sources)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,27 +36,27 @@ func classifier(t *testing.T, r *repo, sources ...note.Source) *Classifier {
 
 func TestClassifyRealGit(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", numbered(10))
-	r.write("b.txt", numbered(10))
-	r.write("gone.txt", numbered(10))
-	r.write("old.txt", numbered(20))
-	r.write("crlf.txt", strings.ReplaceAll(numbered(10), "\n", "\r\n"))
-	r.write("bin.dat", "a\x00b\x00\x01\x02")
-	r.write("empty.txt", "")
-	r.write("same.txt", numbered(10))
-	r.write("sub/dir.txt", numbered(10))
-	p := r.commit("first")[:7]
+	r.Write("a.txt", numbered(10))
+	r.Write("b.txt", numbered(10))
+	r.Write("gone.txt", numbered(10))
+	r.Write("old.txt", numbered(20))
+	r.Write("crlf.txt", strings.ReplaceAll(numbered(10), "\n", "\r\n"))
+	r.Write("bin.dat", "a\x00b\x00\x01\x02")
+	r.Write("empty.txt", "")
+	r.Write("same.txt", numbered(10))
+	r.Write("sub/dir.txt", numbered(10))
+	p := r.Commit("first")[:7]
 
-	r.write("a.txt", "new top\nnew top 2\n"+numbered(10)) // two lines inserted before
-	r.write("b.txt", strings.Replace(numbered(10), "line 5\n", "edited\n", 1))
-	if err := os.Remove(filepath.Join(r.dir, "gone.txt")); err != nil {
+	r.Write("a.txt", "new top\nnew top 2\n"+numbered(10)) // two lines inserted before
+	r.Write("b.txt", strings.Replace(numbered(10), "line 5\n", "edited\n", 1))
+	if err := os.Remove(filepath.Join(r.Dir, "gone.txt")); err != nil {
 		t.Fatal(err)
 	}
-	r.git("mv", "old.txt", "renamed.txt")
-	r.write("crlf.txt", strings.ReplaceAll(numbered(10), "\n", "\r\n")+"tail\r\n")
-	r.write("bin.dat", "a\x00b\x00\x01\x03")
-	r.write("empty.txt", "now one line\n")
-	r.commit("second")
+	r.Git("mv", "old.txt", "renamed.txt")
+	r.Write("crlf.txt", strings.ReplaceAll(numbered(10), "\n", "\r\n")+"tail\r\n")
+	r.Write("bin.dat", "a\x00b\x00\x01\x03")
+	r.Write("empty.txt", "now one line\n")
+	r.Commit("second")
 
 	tests := []struct {
 		name string
@@ -94,10 +94,10 @@ func TestClassifyRealGit(t *testing.T) {
 
 func TestCRLFLineEndingChangeIsAChange(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", "one\ntwo\nthree\n")
-	p := r.commit("first")[:7]
-	r.write("a.txt", "one\r\ntwo\r\nthree\r\n")
-	r.commit("second")
+	r.Write("a.txt", "one\ntwo\nthree\n")
+	p := r.Commit("first")[:7]
+	r.Write("a.txt", "one\r\ntwo\r\nthree\r\n")
+	r.Commit("second")
 	if got := classifier(t, r, src("a.txt", 2, 2, p)).Classify(src("a.txt", 2, 2, p)); got.Status != Changed {
 		t.Errorf("got %+v", got)
 	}
@@ -105,10 +105,10 @@ func TestCRLFLineEndingChangeIsAChange(t *testing.T) {
 
 func TestUncommittedAndUntrackedFilesAreUnknown(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", numbered(5))
-	p := r.commit("first")[:7]
-	r.write("a.txt", "x\n"+numbered(5))
-	r.write("new.txt", numbered(5))
+	r.Write("a.txt", numbered(5))
+	p := r.Commit("first")[:7]
+	r.Write("a.txt", "x\n"+numbered(5))
+	r.Write("new.txt", numbered(5))
 	for _, tt := range []struct{ path, reason string }{
 		{"a.txt", "the file has uncommitted changes"},
 		{"new.txt", "the file is not tracked by git"},
@@ -123,8 +123,8 @@ func TestUncommittedAndUntrackedFilesAreUnknown(t *testing.T) {
 
 func TestPinnedAtHeadIsCurrent(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", numbered(5))
-	p := r.commit("first")[:12]
+	r.Write("a.txt", numbered(5))
+	p := r.Commit("first")[:12]
 	s := src("a.txt", 2, 3, p)
 	if got := classifier(t, r, s).Classify(s); got.Status != Current || got.From != 2 || got.To != 3 {
 		t.Errorf("got %+v", got)
@@ -133,12 +133,12 @@ func TestPinnedAtHeadIsCurrent(t *testing.T) {
 
 func TestShallowCloneIsUnknown(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", numbered(5))
-	p := r.commit("first")[:7]
-	r.write("a.txt", "x\n"+numbered(5))
-	r.commit("second")
+	r.Write("a.txt", numbered(5))
+	p := r.Commit("first")[:7]
+	r.Write("a.txt", "x\n"+numbered(5))
+	r.Commit("second")
 	clone := filepath.Join(t.TempDir(), "clone")
-	r.git("clone", "-q", "--no-local", "--depth", "1", "file://"+r.dir, clone)
+	r.Git("clone", "-q", "--no-local", "--depth", "1", "file://"+r.Dir, clone)
 	s := src("a.txt", 2, 3, p)
 	c, err := New(ExecGit{}, clone, []note.Source{s})
 	if err != nil {
@@ -156,19 +156,19 @@ func TestNewErrors(t *testing.T) {
 		t.Errorf("no repository: %v", err)
 	}
 	r := newRepo(t) // a repository without a commit
-	if _, err := New(ExecGit{}, r.dir, nil); err != ErrNoRepo {
+	if _, err := New(ExecGit{}, r.Dir, nil); err != ErrNoRepo {
 		t.Errorf("no commit: %v", err)
 	}
 }
 
 func TestSourceRootBelowTheToplevel(t *testing.T) {
 	r := newRepo(t)
-	r.write("pkg/a.txt", numbered(8))
-	p := r.commit("first")[:7]
-	r.write("pkg/a.txt", "top\n"+numbered(8))
-	r.commit("second")
+	r.Write("pkg/a.txt", numbered(8))
+	p := r.Commit("first")[:7]
+	r.Write("pkg/a.txt", "top\n"+numbered(8))
+	r.Commit("second")
 	s := src("a.txt", 2, 3, p)
-	c, err := New(ExecGit{}, filepath.Join(r.dir, "pkg"), []note.Source{s})
+	c, err := New(ExecGit{}, filepath.Join(r.Dir, "pkg"), []note.Source{s})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,15 +179,15 @@ func TestSourceRootBelowTheToplevel(t *testing.T) {
 
 func TestTarget(t *testing.T) {
 	r := newRepo(t)
-	r.write("a.txt", numbered(5))
-	first := r.commit("first")
-	r.write("a.txt", numbered(8))
-	r.write("dirty.txt", "x\n")
-	r.git("add", "-A")
-	r.git("-c", "commit.gpgsign=false", "commit", "-q", "-m", "second")
-	head := r.git("rev-parse", "HEAD")
-	r.write("dirty.txt", "y\n")
-	r.write("loose.txt", "z\n")
+	r.Write("a.txt", numbered(5))
+	first := r.Commit("first")
+	r.Write("a.txt", numbered(8))
+	r.Write("dirty.txt", "x\n")
+	r.Git("add", "-A")
+	r.Git("-c", "commit.gpgsign=false", "commit", "-q", "-m", "second")
+	head := r.Git("rev-parse", "HEAD")
+	r.Write("dirty.txt", "y\n")
+	r.Write("loose.txt", "z\n")
 	c := classifier(t, r)
 	tests := []struct {
 		name   string
@@ -295,14 +295,14 @@ func TestRandomEditsKeepTheCoreGuarantee(t *testing.T) {
 		for _, l := range cur {
 			c = append(c, l.text)
 		}
-		r.write(name, strings.Join(o, "\n")+"\n")
+		r.Write(name, strings.Join(o, "\n")+"\n")
 		trials = append(trials, trial{name, from, to, o, c, want})
 	}
-	p := r.commit("orig")[:7]
+	p := r.Commit("orig")[:7]
 	for _, tr := range trials {
-		r.write(tr.name, strings.Join(tr.now, "\n")+"\n")
+		r.Write(tr.name, strings.Join(tr.now, "\n")+"\n")
 	}
-	r.commit("edited")
+	r.Commit("edited")
 	var all []note.Source
 	for _, tr := range trials {
 		all = append(all, src(tr.name, tr.from, tr.to, p))
