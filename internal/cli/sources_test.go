@@ -181,3 +181,29 @@ func TestSourcesUsageAndEnvironmentErrors(t *testing.T) {
 		t.Errorf("code=%d err=%q", code, errOut)
 	}
 }
+
+// validate --check-sources --git judges a pinned source by content (an unpinned one still by commit time).
+func TestValidateGitWarnsByContentForPinnedSources(t *testing.T) {
+	r, pin, _ := sourcesRepo(t)
+	code, out, errOut := run("--root", r.Dir, "validate", "--check-sources", "--git")
+	if code != 0 || !strings.Contains(out, "2 warnings") {
+		t.Fatalf("code=%d out=%q err=%q", code, out, errOut)
+	}
+	for _, want := range []string{
+		`warning: Alpha.md: Source "docs/a.md" lines 5-7 (pinned @` + pin + `) now holds the same text at lines 7-9; run cscribe sources update`,
+		`warning: Beta.md: Source "docs/b.md" lines 2-4 (pinned @` + pin + `): the cited lines were edited since @` + pin,
+	} {
+		if !strings.Contains(errOut, want) {
+			t.Errorf("missing %q in\n%s", want, errOut)
+		}
+	}
+	// After the update only the changed source warns.
+	if code, _, _ := run("--root", r.Dir, "sources", "update", "--all", "--apply"); code != 1 {
+		t.Fatalf("update code=%d", code)
+	}
+	r.Commit("updated")
+	_, out, errOut = run("--root", r.Dir, "validate", "--check-sources", "--git", "--rule", "source-stale")
+	if strings.Contains(errOut, "Alpha.md") || !strings.Contains(errOut, "Beta.md") {
+		t.Errorf("out=%q err=%q", out, errOut)
+	}
+}

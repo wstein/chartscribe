@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/wstein/chartscribe/internal/note"
+	"github.com/wstein/chartscribe/internal/pin"
 	"github.com/wstein/chartscribe/internal/sourcecheck"
 	"github.com/wstein/chartscribe/internal/validate"
 )
@@ -44,6 +45,9 @@ func ExecRunner(dir string, args ...string) (string, error) {
 	}
 	return string(out), err
 }
+
+// pinGit runs the git commands of pinned sources (package pin); tests may replace it.
+var pinGit pin.Git = pin.ExecGit{}
 
 // Warning is one stale source; it never changes the exit status.
 type Warning struct {
@@ -113,15 +117,18 @@ func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Resul
 		}
 	}
 	dirty := dirtyNotes(run, top, realRoot)
+	cls := pinnedClassifier(srcRoot, notes)
 	for _, n := range notes {
+		// A pinned source is judged by its content (package pin) whatever the state of the note; only an
+		// unpinned one needs the commit times of the note and of the file.
+		skipUnpinned := false
+		var noteTime int64
 		if why, ok := dirty[n.Note]; ok {
 			skipMsg(n.Note + ": " + why)
-			continue
-		}
-		noteTime := commitTime(filepath.Join(realRoot, "notes", n.Note))
-		if noteTime == 0 {
+			skipUnpinned = true
+		} else if noteTime = commitTime(filepath.Join(realRoot, "notes", n.Note)); noteTime == 0 {
 			skipMsg(n.Note + ": note has no history in this clone")
-			continue
+			skipUnpinned = true
 		}
 		for _, s := range n.Sources {
 			if !s.Verifiable() {
@@ -129,6 +136,15 @@ func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Resul
 			}
 			abs, p := sourcecheck.Resolve(srcRoot, s.Path)
 			if p != nil {
+				continue
+			}
+			if s.Kind == note.KindFile && s.Pin != "" {
+				if cls != nil {
+					pinnedWarning(&res, skipMsg, cls, n.Note, s)
+				}
+				continue
+			}
+			if skipUnpinned {
 				continue
 			}
 			t := commitTime(abs)
@@ -144,6 +160,46 @@ func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Resul
 		}
 	}
 	return res
+}
+
+// pinnedClassifier prepares the content-based check of the pinned file sources, or returns nil when there are none.
+func pinnedClassifier(srcRoot string, notes []validate.NoteSources) *pin.Classifier {
+	var pinned []note.Source
+	for _, n := range notes {
+		for _, s := range n.Sources {
+			if s.Kind == note.KindFile && s.Pin != "" && s.Valid() {
+				pinned = append(pinned, s)
+			}
+		}
+	}
+	if len(pinned) == 0 {
+		return nil
+	}
+	c, err := pin.New(pinGit, srcRoot, pinned)
+	if err != nil {
+		return nil
+	}
+	return c
+}
+
+// pinnedWarning warns about a pinned source whose range moved or whose text changed since the pin; a source
+// that cannot be judged is skipped with the reason. A file that is gone is left to source-file-missing.
+func pinnedWarning(res *Result, skipMsg func(string), c *pin.Classifier, name string, s note.Source) {
+	r := c.Classify(s)
+	warn := func(format string, a ...any) {
+		res.Warnings = append(res.Warnings, Warning{Rule: Rule, Note: name, Message: fmt.Sprintf(format, a...)})
+	}
+	switch r.Status {
+	case pin.Moved:
+		warn("Source %q lines %d-%d (pinned @%s) now holds the same text at lines %d-%d; run cscribe sources update",
+			s.Path, s.From, s.To, s.Pin, r.From, r.To)
+	case pin.Changed:
+		warn("Source %q lines %d-%d (pinned @%s): %s; check what the note says", s.Path, s.From, s.To, s.Pin, r.Reason)
+	case pin.Renamed:
+		warn("Source %q (pinned @%s) was renamed to %q; update the path", s.Path, s.Pin, r.NewPath)
+	case pin.Unknown:
+		skipMsg(fmt.Sprintf("%s: pinned source %q: %s", name, s.Path, r.Reason))
+	}
 }
 
 func kindWord(s note.Source) string {
