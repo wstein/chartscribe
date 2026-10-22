@@ -85,7 +85,7 @@ func failure(cmd *cobra.Command, opts *globalOptions, code int, kind string, err
 	if !opts.json {
 		return exitError{code: code, err: err}
 	}
-	doc := errorDocument{Version: 1, Command: cmd.Name(), OK: false, Error: kind, Message: err.Error()}
+	doc := errorDocument{Version: 1, Command: commandLabel(cmd), OK: false, Error: kind, Message: err.Error()}
 	if werr := writeJSON(cmd.OutOrStdout(), doc); werr != nil {
 		return runtimeFailure{werr}
 	}
@@ -271,12 +271,21 @@ func jsonUsageError(root *cobra.Command, args []string, stdout io.Writer, err er
 		return false
 	}
 	target, _, ferr := root.Find(args)
-	if ferr != nil || target == nil || (!jsonCommands[target.Name()]) {
+	if ferr != nil || target == nil || !jsonCommands[commandLabel(target)] {
 		return false
 	}
-	doc := errorDocument{Version: 1, Command: target.Name(), OK: false, Error: "usage", Message: err.Error()}
+	doc := errorDocument{Version: 1, Command: commandLabel(target), OK: false, Error: "usage", Message: err.Error()}
 	return writeJSON(stdout, doc) == nil
 }
 
 // jsonCommands are the commands whose usage errors are reported as JSON under --json.
-var jsonCommands = map[string]bool{"validate": true, "init": true, "new": true, "list": true, "tags": true, "links": true, "backlinks": true}
+var jsonCommands = map[string]bool{"validate": true, "init": true, "new": true, "list": true, "tags": true, "links": true, "backlinks": true,
+	"sources check": true, "sources pin": true, "sources update": true}
+
+// commandLabel names a command in JSON documents: "validate", or "sources check" for a subcommand.
+func commandLabel(cmd *cobra.Command) string {
+	if p := cmd.Parent(); p != nil && p.HasParent() {
+		return p.Name() + " " + cmd.Name()
+	}
+	return cmd.Name()
+}
