@@ -8,6 +8,7 @@ import (
 
 	"github.com/wstein/chartscribe/internal/collection"
 	"github.com/wstein/chartscribe/internal/note"
+	"github.com/wstein/chartscribe/internal/sourcecheck"
 )
 
 // parsedNote is a note whose frontmatter parsed.
@@ -77,8 +78,8 @@ func (c *checker) notes(files []collection.File) {
 			}
 		}
 		c.checkTags(n)
-		if !n.isMap && !note.HasSource(n.body) {
-			c.add("source-missing", f.Name, "missing Source line at the end of the body")
+		if !n.isMap {
+			c.checkSources(f.Name, n.body)
 		}
 		c.parsed = append(c.parsed, n)
 	}
@@ -151,4 +152,43 @@ func (c *checker) duplicates() {
 			c.add("name-duplicate", "", fmt.Sprintf("duplicate title or alias %q: %s", name, strings.Join(owners, ", ")))
 		}
 	}
+}
+
+// checkSources applies the source rules to the Source lines of one note. The
+// syntax rules always apply; the file checks only with Options.CheckSources.
+// A note with no well-formed Source line has source-missing, unless a line
+// with a kind prefix already has its own finding.
+func (c *checker) checkSources(name, body string) {
+	srcs := note.ParseSources(body)
+	valid, flagged := false, false
+	for _, s := range srcs {
+		switch {
+		case s.Kind == note.KindUnknown:
+			flagged = true
+			c.add("source-kind-unknown", name, fmt.Sprintf("unknown Source kind %q (known: %s, or \"<path>, lines A-B\")",
+				s.KindName, strings.Join(note.Kinds, ", ")))
+		case s.Malformed:
+			flagged = true
+			c.add("source-malformed", name, fmt.Sprintf("malformed Source line %q; use %s", s.Raw, sourceForm[s.Kind]))
+		default:
+			valid = true
+			if c.opts.CheckSources {
+				if p := sourcecheck.Check(c.opts.SourceRoot, s); p != nil {
+					c.add(p.Rule, name, p.Message)
+				}
+			}
+		}
+	}
+	if !valid && !flagged {
+		c.add("source-missing", name, "missing Source line at the end of the body")
+	}
+	if len(srcs) > 0 {
+		c.sources = append(c.sources, NoteSources{Note: name, Sources: srcs})
+	}
+}
+
+var sourceForm = map[string]string{
+	note.KindDecision:    `"decision: <text>, <YYYY-MM-DD>"`,
+	note.KindURL:         `"url: <http or https URL>"`,
+	note.KindMeasurement: `"measurement: <path>[, <key>]"`,
 }

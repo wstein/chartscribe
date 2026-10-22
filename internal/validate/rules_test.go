@@ -353,7 +353,8 @@ func countRule(fs []Finding, rule string) int {
 func TestRuleNames(t *testing.T) {
 	want := []string{"frontmatter", "field-unknown", "id-missing", "id-invalid", "id-duplicate", "list-type", "tag-invalid", "tag-count",
 		"title-char", "name-duplicate", "source-missing", "wikilink-unresolved", "map-unlisted", "map-multiple", "map-category",
-		"map-duplicate", "category-no-map", "readme-link"}
+		"map-duplicate", "category-no-map", "readme-link",
+		"source-kind-unknown", "source-malformed", "source-file-missing", "source-not-file", "source-range-invalid", "source-outside-root"}
 	if strings.Join(Rules, ",") != strings.Join(want, ",") {
 		t.Errorf("Rules = %v", Rules)
 	}
