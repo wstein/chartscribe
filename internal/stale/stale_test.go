@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/wstein/chartscribe/internal/gittest"
 	"github.com/wstein/chartscribe/internal/note"
 	"github.com/wstein/chartscribe/internal/validate"
 )
@@ -184,6 +185,46 @@ func TestUntrackedNoteIsSkippedWithAReason(t *testing.T) {
 	run := fakeGit(top, map[string]string{"docs/a.md": "1800000000"}, &calls)
 	res := Check(root, src, notes("N.md", fileSrc("docs/a.md")), run)
 	if len(res.Warnings) != 0 || len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0], "N.md: note is not committed") {
+		t.Errorf("got %+v", res)
+	}
+}
+
+// A pinned source is judged by its content: a later commit that does not touch the cited lines gives no
+// warning, a shift gives "moved", an edit gives "changed", and the dirty state of the note does not matter.
+func TestPinnedSourcesAreJudgedByContent(t *testing.T) {
+	r := gittest.New(t)
+	r.Write("notes/N.md", "note\n")
+	r.Write("docs/a.md", "l1\nl2\nl3\nl4\nl5\nl6\n")
+	r.Write("docs/b.md", "l1\nl2\nl3\nl4\nl5\nl6\n")
+	r.Write("docs/c.md", "l1\nl2\nl3\nl4\nl5\nl6\n")
+	p := r.Commit("first")[:12]
+	r.Write("docs/a.md", "l1\nl2\nl3\nl4\nl5\nl6\nl7 appended\n") // later commit, cited lines untouched
+	r.Write("docs/b.md", "new\nl1\nl2\nl3\nl4\nl5\nl6\n")         // shifted
+	r.Write("docs/c.md", "l1\nl2\nCHANGED\nl4\nl5\nl6\n")         // edited
+	r.Commit("edit")
+	pinned := func(path string) note.Source {
+		return note.Source{Kind: note.KindFile, Path: path, From: 2, To: 4, Pin: p}
+	}
+	r.Write("notes/N.md", "dirty\n") // the note is dirty: pinned sources are still judged
+	res := Check(r.Dir, r.Dir, notes("N.md", pinned("docs/a.md"), pinned("docs/b.md"), pinned("docs/c.md")), ExecRunner)
+	var got []string
+	for _, w := range res.Warnings {
+		got = append(got, w.Message)
+	}
+	want := []string{
+		`Source "docs/b.md" lines 2-4 (pinned @` + p + `) now holds the same text at lines 3-5; run cscribe sources update`,
+		`Source "docs/c.md" lines 2-4 (pinned @` + p + `): the cited lines were edited since @` + p + `; check what the note says`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("warnings:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0], "N.md: note has uncommitted changes") {
+		t.Errorf("skipped %v", res.Skipped)
+	}
+	// An unknown pin is skipped with a reason.
+	bad := note.Source{Kind: note.KindFile, Path: "docs/a.md", From: 1, To: 1, Pin: "deadbee"}
+	res = Check(r.Dir, r.Dir, notes("N.md", bad), ExecRunner)
+	if len(res.Warnings) != 0 || !strings.Contains(strings.Join(res.Skipped, "\n"), `pinned source "docs/a.md": pin @deadbee is not a commit of this clone`) {
 		t.Errorf("got %+v", res)
 	}
 }
