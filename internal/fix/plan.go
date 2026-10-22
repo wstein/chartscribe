@@ -150,6 +150,9 @@ func texts0(files []collection.File) map[string]string {
 	return out
 }
 
+// UnsafeFile returns why a file must not be rewritten (a symlink, not a regular file, CR line endings), or "".
+func UnsafeFile(path string) string { return unsafeFile(path) }
+
 // unsafeFile returns why a file must not be rewritten, or "".
 func unsafeFile(path string) string {
 	info, err := os.Lstat(path)
