@@ -98,7 +98,7 @@ func noteTemplate(id string) string { return NoteText(id, nil) }
 
 // SourceHint is the template comment above the Source line; it names the typed
 // forms. It does not start with "Source:", so it is not a Source line.
-const SourceHint = "<!-- Source forms: <path>, lines A-B | decision: <text>, YYYY-MM-DD | url: <https://...> | measurement: <path>[, <key>] -->"
+const SourceHint = "<!-- Source forms: <path>, lines A-B [@<commit>] | decision: <text>, YYYY-MM-DD | url: <https://...> | measurement: <path>[, <key>] -->"
 
 // NoteText is the text of a new note: the template with a concrete id and tags
 // (an empty list when none), the Links heading and an empty Source line.
