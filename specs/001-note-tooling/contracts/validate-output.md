@@ -1,7 +1,7 @@
 # Contract: validate output
 
 ```text
-cscribe [--root DIR] [--json] validate [--rule NAME]...
+cscribe [--root DIR] [--json] validate [--rule NAME]... [--check-sources [--git]]
 cscribe lint ...                  (alias)
 ```
 
@@ -31,6 +31,14 @@ One document on stdout; nothing else on stdout; human text is suppressed.
 - `findings` is always present, sorted by note then rule, without duplicates; `note` is `""` for collection-level findings.
 - `ok` is true exactly when `findings` is empty.
 - A usage or environment error under `--json` prints `{"version":1,"command":"validate","ok":false,"error":"<code>","message":"..."}` with `error` one of `usage`, `no-collection`, `io`.
+
+## Source checks
+
+`--check-sources` (or `check_sources = true` in `.cscribe.toml`) adds the file rules of [sources](sources.md) to the
+findings; `--git` (or `check_stale = true`) adds `source-stale` warnings. `--git` without check-sources and
+`--check-sources` with `--fix` are usage errors. Warnings are not findings: with `--json` they are an additive
+`"warnings": [{"rule","note","message"}]` array (present only when not empty) and `"skipped": "<reason>"` when git
+could not be used; `ok` and the exit status depend on `findings` only.
 
 ## Fix mode (`--fix`, `--apply`)
 

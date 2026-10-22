@@ -52,7 +52,12 @@ Source: IDEAS_NOTES.md §1. Direction, lines 1-5
   `aliases` (optional list) and `tags` (a list). Block lists and plain, quoted and single-quoted values are accepted.
 - Tags carry exactly one `type/`, one `status/` and one `category/` value from the vocabulary; a map
   (`type/map`) needs no `status/` tag. The default vocabulary can be replaced in `.cscribe.toml`.
-- A note that is not a map ends with a line `Source: <text>, lines A-B`.
+- A note that is not a map ends with one or more `Source:` lines: `<path>, lines A-B`, `decision: <text>, <YYYY-MM-DD>`,
+  `url: <https://...>` or `measurement: <path>[, <key>]`. Use the typed forms for a decision, a link or a data file
+  instead of faking a path and line range. Details: [sources contract](../specs/001-note-tooling/contracts/sources.md).
+- `cscribe validate --check-sources` also checks that cited files exist below the source root (`source_root` in
+  `.cscribe.toml`, default the git toplevel) and that `lines A-B` is real; add `--git` for the read-only
+  `source-stale` warning (never an error, nothing is fetched). Run it in CI with `check_sources = true`.
 - Every wikilink resolves to a title or alias; every note is listed in exactly one map of its category,
   and there is exactly one map per category in use.
 
@@ -76,7 +81,7 @@ refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`,
 ## Creating and finding notes
 
 - `cscribe new "Title" --tag type/idea` creates `notes/Title.md` with a fresh id and prints its path. It refuses
-  an existing title and forbidden characters (exit 2). Then fill the tags and the `Source: <text>, lines A-B` line,
+  an existing title and forbidden characters (exit 2). Then fill the tags and the `Source:` line (typed forms are in the template comment),
   link the note from its map and run the validate loop.
 - `cscribe list [--tag T]` (id, title, path, tags), `cscribe tags` (tag and count), `cscribe links NOTE` and
   `cscribe backlinks NOTE` read the collection without writing. `--json` gives one document each
@@ -109,6 +114,9 @@ writes nothing. Details: [init contract](../specs/001-note-tooling/contracts/ini
 
 ## Known limitations
 
+- Source checks: a cited line range is checked against the file as it is now; there is no line remapping, so a
+  `source-stale` warning only says that the file has a newer commit. The legacy `<path>, lines A-B` form wins over a
+  kind prefix, and a path with `, ` cannot be written in a `measurement:` line.
 - Titles that differ only in Unicode normalization (NFC/NFD) are not detected by `new`; they collide on macOS.
 - The fenced-code scanner (`validate`, `tracking`, `export`) differs from a full CommonMark parser in the cases below.
   A missed fence makes the wikilinks and `#` lines inside it count as prose.
