@@ -86,3 +86,11 @@ TDD order: in each group the test task comes first and fails before its implemen
 - [x] T803 Test and implement `internal/stale` (read-only git, `GIT_OPTIONAL_LOCKS=0`, skip without git or repository) and `validate --check-sources [--git]`; `source-stale` is a warning.
 - [x] T804 Template comment in `new` and `init`; `validate --fix` leaves typed lines alone.
 - [x] T805 Docs: README, agent guide, llms.txt, [contracts/sources.md](contracts/sources.md).
+
+## Source pins (stacked on the Sources slice)
+
+- [x] T901 Test and implement the optional `@<commit>` pin in the file Source line (`internal/note`); plain `validate` accepts it, legacy results unchanged.
+- [x] T902 Test and implement the hunk mapping (`internal/pin`: table of insert, delete, replace, shift, boundaries) and the git classification (real-git tests, random-edit property test: `current` and `moved` hold the pinned text).
+- [x] T903 Test and implement `cscribe sources check|pin|update` with `--apply` through `fix.ApplyFiles` (atomic, restore, revalidation, CR and symlink refusals), JSON and goldens.
+- [x] T904 `validate --check-sources --git` judges pinned sources by content.
+- [x] T905 Docs: README, agent guide, llms.txt, [contracts/sources.md](contracts/sources.md).

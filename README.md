@@ -50,7 +50,9 @@ the summary `validate: <N> notes, <M> findings` to stdout; `--json` writes one d
 ([sources](specs/001-note-tooling/contracts/sources.md)). `validate --check-sources` also checks that the cited
 file exists below the source root (a file, not a directory) and that the line range is real; `--git` adds a
 read-only `source-stale` warning (never an error) when a cited file has a newer commit than the note. Nothing is
-fetched. An optional `.cscribe.toml` at the root replaces the tag vocabulary and may set the source options:
+fetched. `cscribe sources pin|check|update` keep the ranges true when the cited file changes: a pin
+`Source: <path>, lines A-B @<commit>` lets `check` tell moved, changed, renamed and missing ranges apart and `update` rewrite the
+moved ones (`--apply` to write; see the contract). An optional `.cscribe.toml` at the root replaces the tag vocabulary and may set the source options:
 
 ```toml
 source_root = ".."        # default: the git toplevel of the collection, else its parent

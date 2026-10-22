@@ -100,6 +100,13 @@ Source: IDEAS_NOTES.md §1. Direction, lines 1-5
 - `cscribe validate --check-sources` also checks that cited files exist below the source root (`source_root` in
   `.cscribe.toml`, default the git toplevel) and that `lines A-B` is real; add `--git` for the read-only
   `source-stale` warning (never an error, nothing is fetched). Run it in CI with `check_sources = true`.
+- Pin file sources: `cscribe sources pin <note>` (or `--all`) adds ` @<commit>` to `Source: <path>, lines A-B`. Pinning says
+  the range is right NOW (it must be committed and valid); use `--rev <commit>` for a commit you know it was right at.
+  Later, `cscribe sources check` reports each pinned source as `current`, `moved` (same text at other lines, with the new
+  range), `changed` (the cited text was edited: re-read the file and the note), `renamed` or `missing`. `cscribe sources update`
+  rewrites only `moved` ranges and moves the pin to HEAD. Both pin and update show a plan and write only with `--apply`.
+  They never decide for you about a `changed` source and never change the note text, and they say nothing about whether the
+  note's claim is still true, only whether the cited lines are where they were.
 - Every wikilink resolves to a title or alias; every note is listed in exactly one map of its category,
   and there is exactly one map per category in use.
 
