@@ -17,12 +17,29 @@ var ForbiddenTitle = regexp.MustCompile(`[\\/:*?"<>|#\[\]^]`)
 const ForbiddenTitleChars = `\ / : * ? " < > | # [ ] ^`
 
 var (
-	wikilink   = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
-	sourceLine = regexp.MustCompile(`(?m)^Source: .+, lines [0-9]+-[0-9]+$`)
+	wikilink = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 )
 
-// HasSource reports whether body has a line `Source: <text>, lines A-B`.
-func HasSource(body string) bool { return sourceLine.MatchString(body) }
+// HasSource reports whether body has a well-formed Source line: the legacy
+// `Source: <text>, lines A-B` or a typed one (see ParseSources).
+func HasSource(body string) bool {
+	for _, s := range ParseSources(body) {
+		if s.Valid() {
+			return true
+		}
+	}
+	return false
+}
+
+// sourceEnd returns the end offset of the first well-formed Source line.
+func sourceEnd(body string) (int, bool) {
+	for _, loc := range anySourceLine.FindAllStringIndex(body, -1) {
+		if s, ok := parseSource(strings.TrimPrefix(body[loc[0]:loc[1]], "Source: ")); ok && s.Valid() {
+			return loc[1], true
+		}
+	}
+	return 0, false
+}
 
 // WikiTargets returns the raw text between [[ and ]] of every wikilink in body.
 func WikiTargets(body string) []string {
@@ -57,8 +74,8 @@ func StripTracking(body string) string {
 // Headings inside fenced code blocks are not headings.
 func trackingSpan(body string) (start, end int, ok bool) {
 	from := 0
-	if loc := sourceLine.FindStringIndex(body); loc != nil {
-		from = loc[1]
+	if end, ok := sourceEnd(body); ok {
+		from = end
 	}
 	start = -1
 	end = len(body)
