@@ -42,21 +42,67 @@ func DefaultVocabulary() Vocabulary {
 // dependency for it: `#` comments, basic ("...") and literal ('...') strings,
 // arrays that may span lines and end with a comma. Anything else is an error.
 func LoadVocabulary(root string) (Vocabulary, error) {
-	v := DefaultVocabulary()
-	data, err := os.ReadFile(filepath.Join(root, ConfigName))
-	if errors.Is(err, os.ErrNotExist) {
-		return v, nil
-	}
-	if err != nil {
-		return Vocabulary{}, err
-	}
-	if err := parseConfig(string(data), &v); err != nil {
-		return Vocabulary{}, fmt.Errorf("%s: %w", ConfigName, err)
-	}
-	return v, nil
+	cfg, err := LoadConfig(root)
+	return cfg.Vocabulary, err
 }
 
-func parseConfig(text string, v *Vocabulary) error {
+// Config is the content of .cscribe.toml. The top-level keys (before any table)
+// are source_root (a string), check_sources and check_stale (booleans).
+type Config struct {
+	Vocabulary   Vocabulary
+	SourceRoot   string // "" when not set; see ResolveSourceRoot
+	CheckSources bool
+	CheckStale   bool
+}
+
+// LoadConfig reads .cscribe.toml of the collection at root; without the file
+// the default vocabulary and no source keys apply.
+func LoadConfig(root string) (Config, error) {
+	cfg := Config{Vocabulary: DefaultVocabulary()}
+	data, err := os.ReadFile(filepath.Join(root, ConfigName))
+	if errors.Is(err, os.ErrNotExist) {
+		return cfg, nil
+	}
+	if err != nil {
+		return Config{}, err
+	}
+	if err := parseConfig(string(data), &cfg); err != nil {
+		return Config{}, fmt.Errorf("%s: %w", ConfigName, err)
+	}
+	return cfg, nil
+}
+
+// DefaultSourceRoot is the git toplevel of the collection root (the nearest
+// directory above it with a .git entry), else the parent of the collection root.
+// No process is started.
+func DefaultSourceRoot(root string) string {
+	for dir := root; ; {
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return filepath.Dir(root)
+}
+
+// ResolveSourceRoot returns the directory the paths of Source lines are
+// relative to: the source_root key (relative to the collection root) or the default.
+func ResolveSourceRoot(root string, cfg Config) string {
+	switch {
+	case cfg.SourceRoot == "":
+		return DefaultSourceRoot(root)
+	case filepath.IsAbs(cfg.SourceRoot):
+		return filepath.Clean(cfg.SourceRoot)
+	}
+	return filepath.Join(root, filepath.FromSlash(cfg.SourceRoot))
+}
+
+func parseConfig(text string, cfg *Config) error {
+	v := &cfg.Vocabulary
 	lines := strings.Split(text, "\n")
 	table := ""
 	seen := map[string]bool{}
@@ -79,7 +125,17 @@ func parseConfig(text string, v *Vocabulary) error {
 		}
 		key = strings.TrimSpace(key)
 		if table == "" {
-			return fmt.Errorf("line %d: key %q outside a table", lineNo, key)
+			if !topLevelKeys[key] {
+				return fmt.Errorf("line %d: key %q outside a table", lineNo, key)
+			}
+			if seen["."+key] {
+				return fmt.Errorf("line %d: duplicate key %q", lineNo, key)
+			}
+			seen["."+key] = true
+			if err := setTopLevel(cfg, key, strings.TrimSpace(rest)); err != nil {
+				return fmt.Errorf("line %d: %s: %w", lineNo, key, err)
+			}
+			continue
 		}
 		// Collect the array across lines until the brackets balance.
 		value := strings.TrimSpace(rest)
@@ -208,4 +264,42 @@ func parseStringArray(value string) ([]string, error) {
 		inner = strings.TrimSpace(inner[1:])
 	}
 	return items, nil
+}
+
+var topLevelKeys = map[string]bool{"source_root": true, "check_sources": true, "check_stale": true}
+
+func setTopLevel(cfg *Config, key, value string) error {
+	switch key {
+	case "check_sources", "check_stale":
+		var b bool
+		switch value {
+		case "true":
+			b = true
+		case "false":
+		default:
+			return errors.New("expected true or false")
+		}
+		if key == "check_sources" {
+			cfg.CheckSources = b
+		} else {
+			cfg.CheckStale = b
+		}
+		return nil
+	}
+	var s string
+	switch {
+	case len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"':
+		if err := json.Unmarshal([]byte(value), &s); err != nil {
+			return errors.New("invalid string escape")
+		}
+	case len(value) >= 2 && value[0] == '\'' && value[len(value)-1] == '\'':
+		s = value[1 : len(value)-1]
+	default:
+		return errors.New("expected a string")
+	}
+	if s == "" {
+		return errors.New("empty value")
+	}
+	cfg.SourceRoot = s
+	return nil
 }
