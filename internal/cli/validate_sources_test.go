@@ -103,6 +103,7 @@ func TestSourceFlagUsageErrors(t *testing.T) {
 	for _, args := range [][]string{
 		{"validate", "--git"},
 		{"validate", "--fix", "--check-sources"},
+		{"validate", "--fix", "--git"},
 	} {
 		code, _, errOut := run(append([]string{"--root", root}, args...)...)
 		if code != 2 || !strings.Contains(errOut, "--") {
