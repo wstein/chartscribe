@@ -158,8 +158,7 @@ func PlanPin(root, srcRoot string, g pin.Git, only []string, rev string) (*Plan,
 	return build(root, srcRoot, g, only, RulePin, func(c *pin.Classifier, e Entry) Row {
 		r := Row{Entry: e, Action: ActionNone, Result: pin.Result{Status: pin.Unpinned}}
 		if e.Source.Pin != "" {
-			r.Result = c.Classify(e.Source)
-			return r
+			return classifyRow(c, e)
 		}
 		short, why := c.Target(e.Source, rev)
 		if why != "" {

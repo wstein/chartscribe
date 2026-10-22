@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "command": "sources check",
+  "ok": false,
+  "notes": 4,
+  "counts": {
+    "current": 0,
+    "moved": 1,
+    "changed": 1,
+    "renamed": 0,
+    "missing": 0,
+    "unknown": 0,
+    "unpinned": 1
+  },
+  "sources": [
+    {
+      "note": "Alpha.md",
+      "line": 7,
+      "path": "docs/a.md",
+      "from": 5,
+      "to": 7,
+      "pin": "{PIN}",
+      "status": "moved",
+      "new_from": 7,
+      "new_to": 9,
+      "action": "none"
+    },
+    {
+      "note": "Beta.md",
+      "line": 7,
+      "path": "docs/b.md",
+      "from": 2,
+      "to": 4,
+      "pin": "{PIN}",
+      "status": "changed",
+      "action": "review",
+      "reason": "the cited lines were edited since @{PIN}",
+      "hunks": [
+        "@@ -3 +3 @@"
+      ]
+    },
+    {
+      "note": "Gamma.md",
+      "line": 7,
+      "path": "docs/a.md",
+      "from": 1,
+      "to": 2,
+      "status": "unpinned",
+      "action": "none"
+    }
+  ]
+}
