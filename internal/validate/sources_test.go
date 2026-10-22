@@ -164,8 +164,19 @@ func TestPinnedSource(t *testing.T) {
 	if got := rules("Source: real.md, lines 1-2 @nothex"); got != "source-malformed" {
 		t.Errorf("bad pin: %q", got)
 	}
-	if got := rules("Source: real.md, lines 1-2 @nothex\nSource: real.md, lines 1-1"); got != "" {
+	// A line with an @ suffix is new grammar: a bad pin is malformed even next to a legacy line.
+	if got := rules("Source: real.md, lines 1-2 @nothex\nSource: real.md, lines 1-1"); got != "source-malformed" {
 		t.Errorf("bad pin next to a legacy line: %q", got)
+	}
+	for _, line := range []string{"Source: real.md, lines 1-2 @", "Source: real.md, lines 1-2 @abc def", "Source: real.md, lines 0-0 @0123abc",
+		"Source: real.md, lines 0-3 @0123abc", "Source: real.md, lines 2-1 @0123abc"} {
+		if got := rules(line); got != "source-malformed" {
+			t.Errorf("%q: %q", line, got)
+		}
+	}
+	// A legacy line that merely contains " @" stays a legacy line.
+	if got := rules("Source: real.md @x, lines 1-2"); got != "source-file-missing" {
+		t.Errorf("legacy path with @: %q", got)
 	}
 }
 

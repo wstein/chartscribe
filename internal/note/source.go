@@ -25,7 +25,7 @@ var Kinds = []string{KindDecision, KindMeasurement, KindURL}
 
 var (
 	anySourceLine = regexp.MustCompile(`(?m)^Source: .*$`)
-	pinnedSource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+) @(\S+)$`)
+	pinnedSource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+) @(.*)$`)
 	pinHex        = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 	legacySource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+)$`)
 	kindPrefix    = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9-]*):(?: (.*))?$`)
@@ -124,15 +124,18 @@ func parseSource(raw string) (Source, bool) {
 		}
 		return s, true
 	}
-	if m := pinnedSource.FindStringSubmatch(raw); m != nil {
-		s := Source{Kind: KindFile, Raw: raw, Path: strings.TrimSpace(m[1]), From: atoi(m[2]), To: atoi(m[3]), Pin: m[4]}
-		if !pinHex.MatchString(m[4]) {
-			s.Pin, s.Malformed, s.Why = "", true, "the pin must be 7 to 40 lower-case hex digits"
-		}
-		return s, true
-	}
 	if m := legacySource.FindStringSubmatch(raw); m != nil {
 		return Source{Kind: KindFile, Raw: raw, Path: strings.TrimSpace(m[1]), From: atoi(m[2]), To: atoi(m[3])}, true
+	}
+	if m := pinnedSource.FindStringSubmatch(raw); m != nil {
+		s := Source{Kind: KindFile, Raw: raw, Path: strings.TrimSpace(m[1]), From: atoi(m[2]), To: atoi(m[3]), Pin: m[4]}
+		switch {
+		case !pinHex.MatchString(m[4]):
+			s.Pin, s.Malformed, s.Why = "", true, "the pin must be 7 to 40 lower-case hex digits"
+		case s.From < 1 || s.From > s.To:
+			s.Malformed, s.Why = true, "a pinned range must satisfy 1 <= A <= B"
+		}
+		return s, true
 	}
 	// Aliases without a colon: "decision <date> <who>" and "measurement <what> <date>".
 	if m := decisionAlias.FindStringSubmatch(raw); m != nil {
