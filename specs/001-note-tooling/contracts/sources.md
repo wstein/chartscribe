@@ -1,17 +1,30 @@
 # Contract: Source lines
 
-A note that is not a map has one or more lines that start with `Source: ` (at the line start, after
-the `## Links` heading; the generated `## Tracking` section is not read). A note needs at least one
-well-formed one (`source-missing`). Rules and examples only.
+A note that is not a map has one or more lines that start with `Source: ` at the line start, outside code
+fences and outside the generated `## Tracking` section. A note needs at least one well-formed one
+(`source-missing`). Rules and examples only.
+
+Compatibility: a note that earlier versions accepted (a line `Source: <text>, lines A-B` anywhere) stays
+accepted, with the same findings. Only lines that were already ignored can now give `source-kind-unknown` or
+`source-malformed`, and only in a note without such a legacy line. One deliberate exception: a bare URL with
+a range (`Source: https://example.com/x, lines 1-1`) is `source-malformed`, because the range cannot be real.
 
 ## Forms
 
 | Kind | Line | Notes |
 | --- | --- | --- |
 | file | `Source: <path>, lines A-B` | The legacy form, unchanged. It wins over every other form. `<path>` is free text unless `--check-sources` is on. |
-| decision | `Source: decision: <free text>, <YYYY-MM-DD>` | The date is required and a real calendar date. |
-| url | `Source: url: <https://...>` | `http` or `https` with a host, no space. Never fetched. |
-| measurement | `Source: measurement: <path>[, <key>]` | `<path>` is a data file; `<key>` is optional text (the first `, ` separates it, so a path holds no `, `). |
+| decision | `Source: decision: <free text>, <YYYY-MM-DD>` | The date is required and a real calendar date. Alias: `Source: decision <YYYY-MM-DD> <who or text>`. |
+| url | `Source: url: <https://...>` or the bare `Source: https://...` | `http` or `https` with a host, no space, no line range (`url sources take no line range`). Never fetched. |
+| measurement | `Source: measurement: <path>[, <key>]` | `<key>` is optional text (the first `, ` separates it, so a path holds no `, `). Alias: `Source: measurement <path or command> <YYYY-MM-DD>`. |
+
+The legacy form wins over every other: `Source: decision 2026-10-21 owner, lines 1-1` is a file source. The
+aliases have no colon, so they never clash with the canonical forms. The canonical forms are the ones `new`
+and the guide teach.
+
+A measurement text is checked as a file only when it looks like a relative path: one word (no space) that
+contains `/` or `.` and does not start with `-`. Anything else (`cargo bench --bench x`) is free text and is
+never existence-checked.
 
 ```text
 Source: docs/design.md, lines 12-30
@@ -30,12 +43,12 @@ Always (no flag):
 | `source-malformed` | a `decision:`, `url:` or `measurement:` line that does not parse (no or invalid date, bad URL, empty path) |
 | `source-missing` | no well-formed Source line and no line with its own finding above |
 
-With `validate --check-sources` or `check_sources = true` (kinds file and measurement only; nothing is fetched):
+With `validate --check-sources` or `check_sources = true` (kind file, and measurement with a path-like text; nothing is fetched):
 
 | Rule | Finding when |
 | --- | --- |
 | `source-file-missing` | the path does not exist below the source root |
-| `source-not-file` | the path exists but is not a regular file (a directory) |
+| `source-not-file` | the path exists but is not a regular file; the message says what it is (a directory, a named pipe, a socket, a device) |
 | `source-range-invalid` | for `lines A-B`: not `1 <= A <= B <= number of lines` (a last line without a newline counts; an empty file has none) |
 | `source-outside-root` | the path is absolute, leaves the source root with `..`, or a symbolic link resolves outside it |
 
@@ -51,9 +64,14 @@ of the cited file with that of the note file; a newer source commit gives
 `warning: <note>: Source "<path>" has a commit (<date>) newer than the last commit of this note (<date>); ...`.
 Warnings do not change `ok` or the exit status (1 stays "findings"); the summary appends `, <W> warnings`
 and `--json` gets an additive `warnings` array (same shape as `findings`). git runs through exec with fixed
-arguments, read-only, with `GIT_OPTIONAL_LOCKS=0`. A missing git or a source root outside a repository skips
-the check with `source-stale skipped: <reason>` on stderr (JSON `skipped`) and never fails. A file or note
-without a commit is left out. `--rule source-stale` limits the output to the warning.
+arguments, read-only, with `GIT_OPTIONAL_LOCKS=0`. What cannot be compared is skipped with a line
+`source-stale skipped: <reason>` on stderr (JSON `skipped`, an array of those lines) and never fails:
+git missing, a source root outside a repository, a shallow clone (`shallow clone (history incomplete)`), a
+note with uncommitted changes or not committed (`<note>: note has uncommitted changes`), a note or cited
+file without history in the clone. `--rule source-stale` limits the output to the warning.
+
+Cost: one `git log -1` per distinct file (cached) plus one `git status` for the notes folder; about 0.8 s for
+1,000 notes citing 300 files.
 
 ## Not yet (design only)
 
