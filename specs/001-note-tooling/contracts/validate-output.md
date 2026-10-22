@@ -36,9 +36,9 @@ One document on stdout; nothing else on stdout; human text is suppressed.
 
 `--check-sources` (or `check_sources = true` in `.cscribe.toml`) adds the file rules of [sources](sources.md) to the
 findings; `--git` (or `check_stale = true`) adds `source-stale` warnings. `--git` without check-sources and
-`--check-sources` with `--fix` are usage errors. Warnings are not findings: with `--json` they are an additive
-`"warnings": [{"rule","note","message"}]` array (present only when not empty) and `"skipped": "<reason>"` when git
-could not be used; `ok` and the exit status depend on `findings` only.
+`--check-sources` or `--git` with `--fix` are usage errors. Warnings are not findings: with `--json` they are an additive
+`"warnings": [{"rule","note","message"}]` array (present only when not empty) and `"skipped": ["<reason>", ...]` for what
+the staleness check could not compare; `ok` and the exit status depend on `findings` only.
 
 ## Fix mode (`--fix`, `--apply`)
 

@@ -6,6 +6,48 @@ You are reading this because a human asked you to help them understand or set up
 ChartScribe, or to write notes for a collection that `cscribe` checks. To debug
 ChartScribe itself, use [llms.txt](../llms.txt) instead.
 
+## Writing a note
+
+Do not write ids and note skeletons by hand. For each note:
+
+1. `cscribe new "Title" --tag type/idea,status/open,category/direction` creates `notes/Title.md` with a fresh id, the
+   template and an empty `Source:` line, and prints the path.
+2. Write the body, fill the tags if you left them out, and replace the empty `Source:` line (see "Citing sources").
+3. List the note in the one map of its category (`cscribe validate --fix` can add the `- [[Title]]` line for you).
+4. Run `cscribe validate`, then `cscribe validate --fix` to see the safe fixes for ids, tag values and map or
+   README links, and `--fix --apply` after the human saw the plan.
+
+### Citing sources
+
+| What you cite | Line |
+| --- | --- |
+| a file | `Source: docs/design.md, lines 12-30` |
+| a decision (chat, meeting) | `Source: decision: use Go for the CLI, 2026-10-22` |
+| a web page | `Source: url: https://example.org/spec` (or the bare URL) |
+| a benchmark or data file | `Source: measurement: bench/run1.csv, p95 latency` |
+
+Never invent a `lines 1-1` for something that is not a file. Details and aliases:
+[sources contract](../specs/001-note-tooling/contracts/sources.md).
+
+### Project categories
+
+The default `category/` values are the chartroom ones. A project that needs others lists them in `.cscribe.toml`
+(the list replaces the defaults, so repeat the ones you keep); a finding like
+`invalid tag "category/x": "x" is not in the configured category/ vocabulary` means exactly that, not a bug:
+
+```toml
+[tags]
+category = ["design", "delivery", "my-new-category"]
+```
+
+### What validate does and does not check
+
+`validate` checks the note format: frontmatter, ids, tags, links, maps and that a well-formed `Source:` line exists.
+By default it does NOT check that the cited file exists, that the line range is valid or current, that a
+decision or URL is real, or that numbers quoted in a note still match anything. A clean run is not a guarantee about
+sources. `--check-sources` checks that cited files exist and that ranges lie inside them; `--git` warns when a cited
+file changed after the note. Nothing is ever fetched.
+
 ## What ChartScribe is
 
 ChartScribe is a Go CLI, `cscribe`, for plain-text Zettelkasten collections. A
