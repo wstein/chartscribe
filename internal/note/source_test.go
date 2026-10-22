@@ -12,6 +12,12 @@ func TestParseSources(t *testing.T) {
 		{"legacy", "Source: docs/a.md, lines 3-9", Source{Kind: KindFile, Path: "docs/a.md", From: 3, To: 9}},
 		{"legacy free text", "Source: IDEAS §1. Direction, lines 1-5", Source{Kind: KindFile, Path: "IDEAS §1. Direction", From: 1, To: 5}},
 		{"legacy wins over a kind prefix", "Source: decision: x, lines 1-2", Source{Kind: KindFile, Path: "decision: x", From: 1, To: 2}},
+		{"pinned", "Source: docs/a.md, lines 3-9 @0123abc", Source{Kind: KindFile, Path: "docs/a.md", From: 3, To: 9, Pin: "0123abc"}},
+		{"pinned long", "Source: a b.md, lines 1-1 @0123456789abcdef0123456789abcdef01234567", Source{Kind: KindFile, Path: "a b.md", From: 1, To: 1, Pin: "0123456789abcdef0123456789abcdef01234567"}},
+		{"pin too short", "Source: docs/a.md, lines 3-9 @0123ab", Source{Kind: KindFile, Path: "docs/a.md", From: 3, To: 9, Malformed: true, Why: "the pin must be 7 to 40 lower-case hex digits"}},
+		{"pin upper case", "Source: docs/a.md, lines 3-9 @ABCDEF1", Source{Kind: KindFile, Path: "docs/a.md", From: 3, To: 9, Malformed: true, Why: "the pin must be 7 to 40 lower-case hex digits"}},
+		{"pin not hex", "Source: docs/a.md, lines 3-9 @main", Source{Kind: KindFile, Path: "docs/a.md", From: 3, To: 9, Malformed: true, Why: "the pin must be 7 to 40 lower-case hex digits"}},
+		{"pin on a url", "Source: https://example.com/x, lines 1-1 @0123abc", Source{Kind: KindURL, Malformed: true}},
 		{"decision", "Source: decision: use Go, 2026-10-22", Source{Kind: KindDecision, Text: "use Go", Date: "2026-10-22"}},
 		{"decision bad date", "Source: decision: use Go, 2026-02-30", Source{Kind: KindDecision, Malformed: true}},
 		{"decision no date", "Source: decision: use Go", Source{Kind: KindDecision, Malformed: true}},
@@ -85,5 +91,28 @@ func TestHasLegacySource(t *testing.T) {
 	}
 	if HasLegacySource("Source: https://x.org/a, lines 1-2\n") || HasLegacySource("Source: url: https://x.org\n") {
 		t.Error("not a legacy source")
+	}
+}
+
+func TestFormatFile(t *testing.T) {
+	if got := FormatFile("docs/a.md", 3, 9, ""); got != "Source: docs/a.md, lines 3-9" {
+		t.Errorf("got %q", got)
+	}
+	if got := FormatFile("docs/a.md", 4, 10, "0123abcdef01"); got != "Source: docs/a.md, lines 4-10 @0123abcdef01" {
+		t.Errorf("got %q", got)
+	}
+	// A formatted line parses back to the same fields.
+	s := ParseSources(FormatFile("a b.md", 1, 2, "0123abc") + "\n")
+	if len(s) != 1 || s[0].Path != "a b.md" || s[0].From != 1 || s[0].To != 2 || s[0].Pin != "0123abc" {
+		t.Errorf("got %+v", s)
+	}
+}
+
+func TestParseSourceLine(t *testing.T) {
+	if s, ok := ParseSourceLine("docs/a.md, lines 1-2 @0123abc"); !ok || s.Pin != "0123abc" {
+		t.Errorf("got %+v %v", s, ok)
+	}
+	if _, ok := ParseSourceLine("nothing"); ok {
+		t.Error("not a source")
 	}
 }

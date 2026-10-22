@@ -3,6 +3,7 @@
 package note
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -24,6 +25,8 @@ var Kinds = []string{KindDecision, KindMeasurement, KindURL}
 
 var (
 	anySourceLine = regexp.MustCompile(`(?m)^Source: .*$`)
+	pinnedSource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+) @(\S+)$`)
+	pinHex        = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 	legacySource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+)$`)
 	kindPrefix    = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9-]*):(?: (.*))?$`)
 	decisionRest  = regexp.MustCompile(`^(.+), ([0-9]{4}-[0-9]{2}-[0-9]{2})$`)
@@ -38,6 +41,7 @@ type Source struct {
 	Raw       string // the text after "Source: "
 	Path      string // file and measurement
 	From, To  int    // file: the line range A-B
+	Pin       string // file: the optional commit the range was cited at (7 to 40 lower-case hex digits)
 	Key       string // measurement: the optional key
 	Text      string // decision: the free text
 	Date      string // decision: YYYY-MM-DD
@@ -93,6 +97,18 @@ func ParseSources(body string) []Source {
 	return out
 }
 
+// ParseSourceLine parses the text after "Source: " of one line.
+func ParseSourceLine(raw string) (Source, bool) { return parseSource(raw) }
+
+// FormatFile renders a file source line (with "Source: ") and, when pin is not empty, its pin.
+func FormatFile(path string, from, to int, pin string) string {
+	line := fmt.Sprintf("Source: %s, lines %d-%d", path, from, to)
+	if pin != "" {
+		line += " @" + pin
+	}
+	return line
+}
+
 func parseSource(raw string) (Source, bool) {
 	// A bare URL is a url source; it comes first so that "<url>, lines A-B" is
 	// reported as a URL with a range, not accepted as a file path.
@@ -105,6 +121,13 @@ func parseSource(raw string) (Source, bool) {
 			s.URL = raw
 		default:
 			s.Malformed = true
+		}
+		return s, true
+	}
+	if m := pinnedSource.FindStringSubmatch(raw); m != nil {
+		s := Source{Kind: KindFile, Raw: raw, Path: strings.TrimSpace(m[1]), From: atoi(m[2]), To: atoi(m[3]), Pin: m[4]}
+		if !pinHex.MatchString(m[4]) {
+			s.Pin, s.Malformed, s.Why = "", true, "the pin must be 7 to 40 lower-case hex digits"
 		}
 		return s, true
 	}
