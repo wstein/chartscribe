@@ -37,7 +37,7 @@ type validateDocument struct {
 	Findings []jsonFinding `json:"findings"`
 	// Warnings (source-stale) never change ok or the exit status; present only when there is one.
 	Warnings []jsonFinding `json:"warnings,omitempty"`
-	Skipped  string        `json:"skipped,omitempty"`
+	Skipped  []string      `json:"skipped,omitempty"`
 	Fix      *fixDocument  `json:"fix,omitempty"`
 }
 
@@ -123,8 +123,8 @@ Exit status: 0 clean, 1 findings, 2 usage error, 3 environment error.`,
 						fmt.Errorf("unknown rule %q (known: %s)", r, strings.Join(append(append([]string{}, validate.Rules...), validate.WarningRules...), ", ")))
 				}
 			}
-			if fixFlag && checkSources {
-				return failure(cmd, opts, exitUsage, "usage", errors.New("--check-sources cannot be combined with --fix"))
+			if fixFlag && (checkSources || gitFlag) {
+				return failure(cmd, opts, exitUsage, "usage", errors.New("--check-sources and --git cannot be combined with --fix"))
 			}
 			if apply && !fixFlag {
 				return failure(cmd, opts, exitUsage, "usage", errors.New("--apply needs --fix"))
@@ -239,13 +239,15 @@ func printValidate(cmd *cobra.Command, opts *globalOptions, notes int, findings 
 			return err
 		}
 	}
-	if st != nil && st.Skipped != "" {
-		if _, err := fmt.Fprintln(cmd.ErrOrStderr(), st.Skipped); err != nil {
-			return err
+	if st != nil {
+		for _, msg := range st.Skipped {
+			if _, err := fmt.Fprintln(cmd.ErrOrStderr(), msg); err != nil {
+				return err
+			}
 		}
 	}
 	summary := fmt.Sprintf("validate: %d notes, %d findings", notes, len(findings))
-	if st != nil && st.Skipped == "" {
+	if st != nil {
 		summary += fmt.Sprintf(", %d warnings", len(warnings))
 	}
 	_, err := fmt.Fprintln(cmd.OutOrStdout(), summary)
