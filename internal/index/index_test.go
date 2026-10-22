@@ -3,6 +3,7 @@
 package index
 
 import (
+	"github.com/wstein/chartscribe/internal/fixtures"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -118,6 +119,7 @@ func TestResolverAgreesWithValidate(t *testing.T) {
 	roots = append(roots, filepath.Join("..", "..", "testdata", "validate", "chartroom"))
 	for _, root := range roots {
 		t.Run(root, func(t *testing.T) {
+			root = fixtures.Materialize(t, root)
 			res, err := validate.Run(root)
 			if err != nil {
 				t.Skip(err)
