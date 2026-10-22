@@ -207,3 +207,26 @@ func TestValidateGitWarnsByContentForPinnedSources(t *testing.T) {
 		t.Errorf("out=%q err=%q", out, errOut)
 	}
 }
+
+// Odd ranges in pinned lines never crash check, update or validate.
+func TestOddPinnedRangesNeverPanic(t *testing.T) {
+	r, pin, _ := sourcesRepo(t)
+	var b strings.Builder
+	for _, rg := range []string{"0-0", "0-3", "5-3", "19-25", "21-21", "99999999999999999999-99999999999999999999", "1-1"} {
+		b.WriteString("Source: docs/b.md, lines " + rg + " @" + pin + "\n")
+		b.WriteString("Source: docs/a.md, lines " + rg + " @" + pin + "\n")
+	}
+	r.Write("notes/Gamma.md", srcNote("20261021120002", b.String()))
+	r.Commit("odd")
+	for _, args := range [][]string{{"sources", "check"}, {"sources", "update", "--all"}, {"sources", "pin", "--all"},
+		{"validate", "--check-sources", "--git"}, {"validate", "--check-sources"}} {
+		code, _, _ := run(append([]string{"--root", r.Dir}, args...)...)
+		if code > 3 {
+			t.Errorf("%v: code %d", args, code)
+		}
+	}
+	// 19-25 on the 22-line file docs/a.md fits; on the unchanged range of a 20-line file it would be unknown.
+	if code, out, _ := run("--root", r.Dir, "--json", "sources", "check", "Gamma.md"); code > 1 || !strings.Contains(out, `"status": "unknown"`) {
+		t.Errorf("code=%d out=%s", code, out)
+	}
+}
