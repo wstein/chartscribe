@@ -78,3 +78,11 @@ TDD order: in each group the test task comes first and fails before its implemen
 ## Slice 5 - optional (MCP deferred until slices 1-4 are in use)
 
 - [x] T501 `validate --fix` for safe findings (plan by default), body hash unchanged.
+
+## Sources (typed Source lines, verification, staleness)
+
+- [x] T801 Test and implement typed Source parsing in `internal/note` (kinds file, decision, url, measurement; the legacy form unchanged) and the `source_root`, `check_sources`, `check_stale` keys of `.cscribe.toml`.
+- [x] T802 Test and implement `internal/sourcecheck` (exists, regular file, `lines A-B` range, no escape by `..`, an absolute path or a symlink) and the rules `source-kind-unknown`, `source-malformed`, `source-file-missing`, `source-not-file`, `source-range-invalid`, `source-outside-root`; fixtures under `testdata/validate/sources`.
+- [x] T803 Test and implement `internal/stale` (read-only git, `GIT_OPTIONAL_LOCKS=0`, skip without git or repository) and `validate --check-sources [--git]`; `source-stale` is a warning.
+- [x] T804 Template comment in `new` and `init`; `validate --fix` leaves typed lines alone.
+- [x] T805 Docs: README, agent guide, llms.txt, [contracts/sources.md](contracts/sources.md).

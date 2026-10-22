@@ -21,7 +21,8 @@ Findings are written to stderr as `<note>: <message>`; the summary
 `validate: <N> notes, <M> findings` goes to stdout. `--json` prints one document on
 stdout. Exit status: 0 clean, 1 findings, 2 usage error (unknown flag or rule name),
 3 environment error (no collection found, unreadable directory or bad `.cscribe.toml`; for
-`tracking` also `gh` missing or failing, or 200 issues returned).
+`tracking` also `gh` missing or failing, or 200 issues returned). `validate --check-sources [--git]` verifies
+cited files and ranges; `source-stale` is a warning and never changes the exit status.
 `cscribe version` prints `cscribe dev` for source builds. To investigate: reproduce with
 `cscribe --root <collection> validate --json`, then narrow with `--rule <name>`. Report
 the exact command, the findings and the exit status.
@@ -35,6 +36,7 @@ the exact command, the findings and the exit status.
 - [Query output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/query-output.md): `new`, `list`, `tags`, `links`, `backlinks` output and JSON
 - [Tracking output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/tracking-output.md): issue link rule, section lines, plan and JSON
 - [Export](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/export.md): `export` rules and an exact output example
+- [Sources](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/sources.md): typed Source lines, `--check-sources`, `source-stale` warning
 - [Validate output](https://raw.githubusercontent.com/wstein/chartscribe/main/specs/001-note-tooling/contracts/validate-output.md): human and JSON output, exit codes
 
 ## Code map
@@ -47,6 +49,7 @@ the exact command, the findings and the exit status.
 - `internal/index`: notes, tags, links and backlinks for the query commands
 - `internal/export`: the Markdown document of `export` (order, anchors, sources)
 - `internal/validate`: the rules and findings
+- `internal/sourcecheck`, `internal/stale`: cited-file checks and the read-only git staleness warning
 - `internal/initcmd`: the embedded `init` file set, plan and apply (symlink and overwrite guards)
 - `testdata`: fixture collections (a chartroom-shaped snapshot and one fixture per failing rule)
 

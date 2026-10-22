@@ -2,7 +2,7 @@
 
 Reference implementation: `chartroom/scripts/check_notes.py`. Each rule has a stable name used in
 the output. A finding has `rule`, `note` (file name, empty for collection-level findings) and `message`.
-All findings are errors; there are no warnings in slice 1.
+All findings are errors. The only warning is `source-stale` (see [sources](sources.md)); it never changes the exit status.
 
 ## Collection
 
@@ -38,7 +38,9 @@ flow lists (`["a", "b"]`, `[a, b]`, `[]`) and block lists (`- item`), `#` commen
 | `tag-count` | not exactly one tag of a namespace; a note with `type/map` needs no `status/` tag |
 | `title-char` | the filename stem contains one of `\ / : * ? " < > \| # [ ] ^` (the last four cut a wikilink target; a difference from the Python reference) |
 | `name-duplicate` | two titles or aliases are equal, case-insensitively (title against alias included) |
-| `source-missing` | a note that is not a map has no line `Source: <text>, lines A-B` |
+| `source-missing` | a note that is not a map has no well-formed Source line (`Source: <text>, lines A-B` or a typed form, see [sources](sources.md)) |
+| `source-kind-unknown`, `source-malformed` | a Source line with an unknown kind prefix or a malformed typed form ([sources](sources.md)) |
+| `source-file-missing`, `source-not-file`, `source-range-invalid`, `source-outside-root` | only with `--check-sources`: the cited file or range does not hold ([sources](sources.md)) |
 | `wikilink-unresolved` | a `[[target]]` in a body does not resolve to a title or alias (case-insensitive); the label (`\|`) and heading (`#`) parts are ignored for resolution |
 | `map-unlisted` | a non-map note is linked from no map |
 | `map-multiple` | a non-map note is linked from more than one map (several links to it from the same map count once) |
@@ -67,7 +69,7 @@ Only frontmatter fields and the link lines of a map or of `README.md` change; th
 | `readme-link` | a broken relative link is rewritten when exactly one path matches after ignoring case, one component at a time; the `#anchor` stays |
 
 Not fixed, because no single value is certain or the fix needs a decision: `frontmatter`, `field-unknown`,
-`id-missing` (no id can be derived), `id-duplicate`, `title-char`, `source-missing`, `wikilink-unresolved`,
+`id-missing` (no id can be derived), `id-duplicate`, `title-char`, `source-missing` and the other `source-` rules, `wikilink-unresolved`,
 `map-multiple`, `map-category`, `map-duplicate`, `category-no-map`, a missing `tags` or `aliases` field (adding
 `tags: []` would trade one finding for three `tag-count` findings; a missing `aliases` is no finding), and list
 formatting or ordering (no finding names it, so nothing changes). A list that is rewritten is written as `["a", "b"]`.
