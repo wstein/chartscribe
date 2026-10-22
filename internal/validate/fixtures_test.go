@@ -3,7 +3,7 @@
 package validate
 
 import (
-	"net/url"
+	"github.com/wstein/chartscribe/internal/fixtures"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,53 +27,6 @@ func fixtureDirs(t *testing.T, kind string) []string {
 		}
 	}
 	return dirs
-}
-
-// materialize returns dir itself, or, when a file name in it holds %XX escapes, a temporary
-// copy with the names decoded. A fixture file whose name Windows cannot hold (a colon in
-// "Bad: title.md") is stored as "Bad%3A title.md" and created at test time; a filesystem that
-// cannot create it skips the test with a message instead of failing.
-func materialize(t *testing.T, dir string) string {
-	t.Helper()
-	escaped := false
-	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err == nil && strings.Contains(d.Name(), "%") {
-			escaped = true
-		}
-		return nil
-	})
-	if !escaped {
-		return dir
-	}
-	dst := t.TempDir()
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(dir, path)
-		parts := strings.Split(rel, string(filepath.Separator))
-		for i, p := range parts {
-			if dec, derr := url.PathUnescape(p); derr == nil {
-				parts[i] = dec
-			}
-		}
-		target := filepath.Join(append([]string{dst}, parts...)...)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(target, data, 0o644); err != nil {
-			t.Skipf("SKIPPED, NOT PASSED: this filesystem cannot create %q: %v", filepath.Join(parts...), err)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return dst
 }
 
 // readPairs reads a file of `rule<TAB>note` lines.
@@ -112,7 +65,7 @@ func TestFixtures(t *testing.T) {
 		for _, dir := range fixtureDirs(t, kind) {
 			t.Run(kind+"/"+filepath.Base(dir), func(t *testing.T) {
 				want := readPairs(t, filepath.Join(dir, "EXPECT"))
-				got := goPairs(t, materialize(t, dir))
+				got := goPairs(t, fixtures.Materialize(t, dir))
 				if strings.Join(got, "|") != strings.Join(want, "|") {
 					t.Errorf("findings = %q, want %q", got, want)
 				}
@@ -129,7 +82,7 @@ func TestFixtures(t *testing.T) {
 
 // The synthetic collection shaped like chartroom/ is clean (SC-001).
 func TestChartroomShapedSnapshotIsClean(t *testing.T) {
-	root := filepath.Join(fixtureRoot, "chartroom")
+	root := fixtures.Materialize(t, filepath.Join(fixtureRoot, "chartroom"))
 	if got := goPairs(t, root); len(got) != 0 {
 		t.Fatalf("findings = %q", got)
 	}
@@ -165,7 +118,7 @@ func copyTree(t *testing.T, src string) string {
 
 // The five mutation probes of SC-001 each give a finding.
 func TestMutationProbes(t *testing.T) {
-	snapshot := filepath.Join(fixtureRoot, "chartroom")
+	snapshot := fixtures.Materialize(t, filepath.Join(fixtureRoot, "chartroom"))
 	const note = "Scope and ground rules"
 	probes := []struct {
 		name, rule string
