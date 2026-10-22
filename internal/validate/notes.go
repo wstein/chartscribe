@@ -120,7 +120,8 @@ func (c *checker) checkTags(n parsedNote) {
 			}
 			count++
 			if !contains(ns.allowed, value) {
-				c.add("tag-invalid", n.name, fmt.Sprintf("invalid tag %q; allowed %s/: %s", t, ns.name, strings.Join(ns.allowed, ", ")))
+				c.add("tag-invalid", n.name, fmt.Sprintf("invalid tag %q: %q is not in the configured %s/ vocabulary; allowed: %s; to add a project value, list it in .cscribe.toml under [tags] %s = [...] (the list replaces the defaults)",
+					t, value, ns.name, strings.Join(ns.allowed, ", "), ns.name))
 			}
 		}
 		if n.isMap && ns.name == "status" {
@@ -159,17 +160,23 @@ func (c *checker) duplicates() {
 // A note with no well-formed Source line has source-missing, unless a line
 // with a kind prefix already has its own finding.
 func (c *checker) checkSources(name, body string) {
-	srcs := note.ParseSources(body)
+	// Sources are read outside code fences; a legacy line anywhere still satisfies
+	// the note, as before, and then only a URL with a line range is reported.
+	srcs := note.ParseSources(note.StripCode(body))
+	legacy := note.HasLegacySource(body)
 	valid, flagged := false, false
 	for _, s := range srcs {
 		switch {
+		case s.Kind == note.KindUnknown && legacy:
+			// A line the earlier rule ignored, in a note it accepted: no new finding.
+		case s.Malformed && legacy && s.Why == "":
 		case s.Kind == note.KindUnknown:
 			flagged = true
 			c.add("source-kind-unknown", name, fmt.Sprintf("unknown Source kind %q (known: %s, or \"<path>, lines A-B\")",
 				s.KindName, strings.Join(note.Kinds, ", ")))
 		case s.Malformed:
 			flagged = true
-			c.add("source-malformed", name, fmt.Sprintf("malformed Source line %q; use %s", s.Raw, sourceForm[s.Kind]))
+			c.add("source-malformed", name, malformedMessage(s))
 		default:
 			valid = true
 			if c.opts.CheckSources {
@@ -179,7 +186,7 @@ func (c *checker) checkSources(name, body string) {
 			}
 		}
 	}
-	if !valid && !flagged {
+	if !valid && !flagged && !legacy {
 		c.add("source-missing", name, "missing Source line at the end of the body")
 	}
 	if len(srcs) > 0 {
@@ -187,8 +194,16 @@ func (c *checker) checkSources(name, body string) {
 	}
 }
 
+func malformedMessage(s note.Source) string {
+	msg := fmt.Sprintf("malformed Source line %q; use %s", s.Raw, sourceForm[s.Kind])
+	if s.Why != "" {
+		msg = fmt.Sprintf("malformed Source line %q: %s; use %s", s.Raw, s.Why, sourceForm[s.Kind])
+	}
+	return msg
+}
+
 var sourceForm = map[string]string{
 	note.KindDecision:    `"decision: <text>, <YYYY-MM-DD>"`,
-	note.KindURL:         `"url: <http or https URL>"`,
+	note.KindURL:         `"url: <http or https URL>" or the bare URL`,
 	note.KindMeasurement: `"measurement: <path>[, <key>]"`,
 }

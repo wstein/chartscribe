@@ -27,6 +27,9 @@ var (
 	legacySource  = regexp.MustCompile(`^(.+), lines ([0-9]+)-([0-9]+)$`)
 	kindPrefix    = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9-]*):(?: (.*))?$`)
 	decisionRest  = regexp.MustCompile(`^(.+), ([0-9]{4}-[0-9]{2}-[0-9]{2})$`)
+	decisionAlias = regexp.MustCompile(`^decision ([0-9]{4}-[0-9]{2}-[0-9]{2}) (.+)$`)
+	measureAlias  = regexp.MustCompile(`^measurement (.+) ([0-9]{4}-[0-9]{2}-[0-9]{2})$`)
+	bareURL       = regexp.MustCompile(`^https?://`)
 )
 
 // Source is one parsed `Source:` line.
@@ -41,14 +44,39 @@ type Source struct {
 	URL       string // url
 	KindName  string // unknown: the prefix as written
 	Malformed bool   // a known kind whose form does not parse
+	Why       string // malformed: a specific reason, when there is one
 }
 
 // Valid reports whether the line is a well-formed source of a known kind.
 func (s Source) Valid() bool { return !s.Malformed && s.Kind != KindUnknown }
 
 // Verifiable reports whether the source cites a file below the source root.
+// A file source always does; a measurement does only when its text looks like a
+// relative path (see PathLike), otherwise it is free text such as a command.
 func (s Source) Verifiable() bool {
-	return s.Valid() && (s.Kind == KindFile || s.Kind == KindMeasurement)
+	return s.Valid() && (s.Kind == KindFile || (s.Kind == KindMeasurement && PathLike(s.Path)))
+}
+
+// PathLike reports whether text is a single word that contains a "/" or a "."
+// and does not start with "-": the shape of a relative path, not of a command.
+func PathLike(text string) bool {
+	return text != "" && !strings.ContainsAny(text, " \t") && !strings.HasPrefix(text, "-") && strings.ContainsAny(text, "/.")
+}
+
+// mainSourceLine is the line shape that earlier versions required: the legacy
+// form anywhere in the body (code fences included).
+var mainSourceLine = regexp.MustCompile(`(?m)^Source: .+, lines [0-9]+-[0-9]+$`)
+
+// HasLegacySource reports whether body has a line `Source: <text>, lines A-B`
+// anywhere (the rule of earlier versions, unchanged), not counting a bare URL
+// with a range, which is a malformed url source.
+func HasLegacySource(body string) bool {
+	for _, line := range mainSourceLine.FindAllString(body, -1) {
+		if !bareURL.MatchString(strings.TrimPrefix(line, "Source: ")) {
+			return true
+		}
+	}
+	return false
 }
 
 // ParseSources returns every line `Source: ...` of body that has a recognised
@@ -66,8 +94,37 @@ func ParseSources(body string) []Source {
 }
 
 func parseSource(raw string) (Source, bool) {
+	// A bare URL is a url source; it comes first so that "<url>, lines A-B" is
+	// reported as a URL with a range, not accepted as a file path.
+	if bareURL.MatchString(raw) {
+		s := Source{Kind: KindURL, Raw: raw}
+		switch {
+		case legacySource.MatchString(raw):
+			s.Malformed, s.Why = true, "url sources take no line range"
+		case validURL(raw):
+			s.URL = raw
+		default:
+			s.Malformed = true
+		}
+		return s, true
+	}
 	if m := legacySource.FindStringSubmatch(raw); m != nil {
 		return Source{Kind: KindFile, Raw: raw, Path: strings.TrimSpace(m[1]), From: atoi(m[2]), To: atoi(m[3])}, true
+	}
+	// Aliases without a colon: "decision <date> <who>" and "measurement <what> <date>".
+	if m := decisionAlias.FindStringSubmatch(raw); m != nil {
+		s := Source{Kind: KindDecision, Raw: raw, Date: m[1], Text: strings.TrimSpace(m[2])}
+		if !validDate(m[1]) {
+			s.Malformed, s.Date, s.Text = true, "", ""
+		}
+		return s, true
+	}
+	if m := measureAlias.FindStringSubmatch(raw); m != nil {
+		s := Source{Kind: KindMeasurement, Raw: raw, Path: strings.TrimSpace(m[1]), Date: m[2]}
+		if !validDate(m[2]) {
+			s.Malformed, s.Path, s.Date = true, "", ""
+		}
+		return s, true
 	}
 	m := kindPrefix.FindStringSubmatch(raw)
 	if m == nil {
