@@ -81,8 +81,15 @@ func Resolve(srcRoot, rel string) (string, *Problem) {
 	}
 	if !info.Mode().IsRegular() {
 		kind := "not a regular file"
-		if info.IsDir() {
+		switch m := info.Mode(); {
+		case m.IsDir():
 			kind = "a directory"
+		case m&os.ModeNamedPipe != 0:
+			kind = "a named pipe"
+		case m&os.ModeSocket != 0:
+			kind = "a socket"
+		case m&os.ModeDevice != 0:
+			kind = "a device"
 		}
 		return "", &Problem{"source-not-file", fmt.Sprintf("Source path %q is %s, not a file", rel, kind)}
 	}
