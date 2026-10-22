@@ -133,6 +133,42 @@ func TestUnknownKindIsReportedOnlyWhereTheNoteWasRejected(t *testing.T) {
 	}
 }
 
+// A pinned file source is a valid file source: the pin does not change the range check, and a
+// malformed pin is reported only where the note had no legacy line.
+func TestPinnedSource(t *testing.T) {
+	root := newFixture(t)
+	if err := os.WriteFile(filepath.Join(root, "real.md"), []byte("one\ntwo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rules := func(line string) string {
+		r := copyTree(t, root)
+		edit(t, r, "First note", legacyLine, line)
+		res, err := RunWith(r, nil, Options{CheckSources: true, SourceRoot: r})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, f := range res.Findings {
+			if f.Note == "First note.md" {
+				out = append(out, f.Rule)
+			}
+		}
+		return strings.Join(out, ",")
+	}
+	if got := rules("Source: real.md, lines 1-2 @0123abc"); got != "" {
+		t.Errorf("pinned: %q", got)
+	}
+	if got := rules("Source: real.md, lines 1-3 @0123abc"); got != "source-range-invalid" {
+		t.Errorf("pinned bad range: %q", got)
+	}
+	if got := rules("Source: real.md, lines 1-2 @nothex"); got != "source-malformed" {
+		t.Errorf("bad pin: %q", got)
+	}
+	if got := rules("Source: real.md, lines 1-2 @nothex\nSource: real.md, lines 1-1"); got != "" {
+		t.Errorf("bad pin next to a legacy line: %q", got)
+	}
+}
+
 // The ticket repro cases (#15, #16).
 func TestTicketCases(t *testing.T) {
 	root := newFixture(t)

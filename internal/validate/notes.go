@@ -170,6 +170,8 @@ func (c *checker) checkSources(name, body string) {
 		case s.Kind == note.KindUnknown && legacy:
 			// A line the earlier rule ignored, in a note it accepted: no new finding.
 		case s.Malformed && legacy && s.Why == "":
+		case s.Malformed && legacy && s.Kind == note.KindFile:
+			// A malformed pin is a new line shape: reported only in a note that had no legacy line.
 		case s.Kind == note.KindUnknown:
 			flagged = true
 			c.add("source-kind-unknown", name, fmt.Sprintf("unknown Source kind %q (known: %s, or \"<path>, lines A-B\")",
@@ -203,6 +205,7 @@ func malformedMessage(s note.Source) string {
 }
 
 var sourceForm = map[string]string{
+	note.KindFile:        `"<path>, lines A-B" or "<path>, lines A-B @<commit>"`,
 	note.KindDecision:    `"decision: <text>, <YYYY-MM-DD>"`,
 	note.KindURL:         `"url: <http or https URL>" or the bare URL`,
 	note.KindMeasurement: `"measurement: <path>[, <key>]"`,
