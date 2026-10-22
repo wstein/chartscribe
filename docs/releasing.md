@@ -40,3 +40,12 @@ emulation proves flaky, replace the `if:` of `publish` by
 `!cancelled() && needs.verify.result == 'success' && needs.build.result == 'success' && needs.smoke.result == 'success' && <the existing condition>`
 so that a failed `smoke-emulated` no longer blocks publication. The owner decides; the structure
 test `TestPublishGatesOnTheSmokeJobs` must then be changed in the same pull request.
+
+## v0.1.0 cannot be fetched with `go install`
+
+The `v0.1.0` tag holds test fixtures named with an em dash (`M0 — ...md`). Go module zips accept only
+letters, digits and `!#$%&()+,-.=@[]^_{}~` and the space in file names (`module.CheckFilePath`), so the
+Go proxy cannot build the zip and `go install ...@v0.1.0` fails with "malformed file path". Tags are
+permanent, so v0.1.0 stays unfetchable through the proxy; its release archives are fine. The fixtures are
+now stored percent-encoded (`%E2%80%94`) and decoded at test time, and `internal/policy` fails if any tracked
+path would break a module zip or a Windows checkout. `go install ...@latest` works from v0.1.1.

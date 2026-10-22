@@ -34,6 +34,10 @@ run is the owner's dry run.
   consequence). No SBOM: the pinned toolchain has no trivial generator, and every binary
   already embeds its module list (`go version -m cscribe`). Adding a pinned
   `cyclonedx-gomod` step is a later, separate decision.
+- No tracked path may break a Go module zip (`go install pkg@version`) or a Windows checkout:
+  `internal/policy` checks every `git ls-files` path against a copy of `module.CheckFilePath` of
+  golang.org/x/mod v0.42.0. That copy agreed with the real function on 194,575 paths (every rune
+  below U+30000 in a name, plus edge cases), and `zip.CreateFromDir` succeeds on the tree.
 - `make` gains no build targets. The scripts are tested offline by `go test ./internal/releaseworkflow`
   (part of `make check`): script behaviour on temporary git repos and a real host build, plus
   text rules on `release.yml` (pins, permissions, matrix equals the table below, archive count).
@@ -90,7 +94,7 @@ All targets gate the release: one failed build or smoke stops publication.
    variable is set; publish it by hand then).
 5. Check: the release has 19 archives and `SHA256SUMS`; download one, then
    `sha256sum --check --ignore-missing SHA256SUMS` (macOS: `grep ' <archive>$' SHA256SUMS | shasum -a 256 --check`), `gh attestation verify <archive> --repo wstein/chartscribe`,
-   and `cscribe version` prints `cscribe v0.1.0`; `go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.0`
-   works once the module proxy has the tag.
+   and `cscribe version` prints `cscribe v0.1.0`. `go install ...@v0.1.0` cannot work (see docs/releasing.md);
+   from v0.1.1 `go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.1` works once the module proxy has the tag.
 
 Scripts and failure hints: [docs/releasing.md](../../docs/releasing.md).

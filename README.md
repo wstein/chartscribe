@@ -128,7 +128,10 @@ grep ' cscribe_0.1.0_darwin_arm64.tar.gz$' SHA256SUMS | shasum -a 256 --check   
 gh attestation verify cscribe_0.1.0_linux_amd64.tar.gz --repo wstein/chartscribe
 ```
 
-Or build from source with Go: `go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.0`.
+The release binary, checked as above, is the recommended way to install. Building from source with
+`go install github.com/wstein/chartscribe/cmd/cscribe@latest` works from v0.1.1 on; v0.1.0 cannot be
+fetched through the Go module proxy (its test fixtures held file names that Go module zips refuse),
+so `@v0.1.0` fails and the v0.1.0 release archives are the way to get that version.
 
 The binaries are not signed with a certificate or notarized. A browser-downloaded binary on
 macOS carries a quarantine flag and Gatekeeper refuses it until you run `xattr -d com.apple.quarantine cscribe`;

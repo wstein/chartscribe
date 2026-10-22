@@ -343,7 +343,7 @@ func TestNotesAndReadmeNameEveryPlatformFamily(t *testing.T) {
 			t.Errorf("plan does not list %s/%s", p.goos, p.goarch)
 		}
 	}
-	for _, want := range []string{"linux_armv7", "linux_armv6", "linux_arm64", "Raspberry Pi", "gh attestation verify", "go install github.com/wstein/chartscribe/cmd/cscribe@v0.1.0", "Gatekeeper", "SmartScreen"} {
+	for _, want := range []string{"linux_armv7", "linux_armv6", "linux_arm64", "Raspberry Pi", "gh attestation verify", "go install github.com/wstein/chartscribe/cmd/cscribe@latest", "Gatekeeper", "SmartScreen"} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README lacks %q", want)
 		}
