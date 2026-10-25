@@ -10,7 +10,7 @@ cscribe lint ...                  (alias)
 ## Human output
 
 Findings on stderr (as `check_notes.py` does), one per line: `<note>: <message>`; collection-level findings without the prefix.
-Summary on stdout: `validate: <N> notes, <M> findings`. No colour when not a terminal.
+Summary on stdout: `validate: <N> notes, <M> findings`. No color when not a terminal.
 
 ## JSON output (`--json`)
 

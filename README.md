@@ -147,7 +147,7 @@ so `@v0.1.0` fails and the v0.1.0 release archives are the way to get that versi
 The binaries are not signed with a certificate or notarized. A browser-downloaded binary on
 macOS carries a quarantine flag and Gatekeeper refuses it until you run `xattr -d com.apple.quarantine cscribe`;
 a file fetched with `curl` or built with `go install` is unaffected. On Windows, SmartScreen may warn
-about the unrecognised download ("More info", then "Run anyway"). The checksum and the attestation
+about the unrecognized download ("More info", then "Run anyway"). The checksum and the attestation
 are the proof of origin. See [docs/releasing.md](docs/releasing.md).
 
 ## Design
@@ -162,6 +162,6 @@ the findings with `chartroom/scripts/check_notes.py` of the Anchorage workspace 
 adds a collection) and is skipped otherwise. The fixtures are synthetic: they are shaped like the real notes but contain no
 real note text.
 
-## Licence
+## License
 
 [EUPL-1.2](LICENSE).

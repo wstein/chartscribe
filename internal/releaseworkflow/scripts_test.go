@@ -291,7 +291,7 @@ func TestPackageTarLayoutAndDeterminism(t *testing.T) {
 		t.Errorf("members %v, want %v", got, want)
 	}
 	if v := run(t, out1, nil, "tar", "-tvzf", name); !strings.Contains(v.stdout, "-rwxr-xr-x 0/0") || !strings.Contains(v.stdout, "2023-11-14") {
-		t.Errorf("mode, owner or mtime not normalised:\n%s", v.stdout)
+		t.Errorf("mode, owner or mtime not normalized:\n%s", v.stdout)
 	}
 	sum, err := os.ReadFile(filepath.Join(out1, name+".sha256"))
 	if err != nil || !strings.HasSuffix(strings.TrimSpace(string(sum)), "  "+name) {

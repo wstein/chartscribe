@@ -54,7 +54,7 @@ func TestRunFreshTreePerCall(t *testing.T) {
 	}
 }
 
-func TestRunCancelledContext(t *testing.T) {
+func TestRunCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var out, errOut bytes.Buffer

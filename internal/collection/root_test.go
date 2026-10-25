@@ -94,7 +94,7 @@ func TestReadNotes(t *testing.T) {
 	}
 }
 
-func TestReadNotesNormalisesLineEndings(t *testing.T) {
+func TestReadNotesNormalizesLineEndings(t *testing.T) {
 	root := t.TempDir()
 	notes := mkdir(t, root, "notes")
 	if err := os.WriteFile(filepath.Join(notes, "n.md"), []byte("a\r\nb\rc\nd"), 0o644); err != nil {

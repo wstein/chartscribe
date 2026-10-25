@@ -125,7 +125,7 @@ failing, 200 issues returned, a note that cannot be written).`,
 }
 
 // planTracking computes the new text of one note from the file as it is on
-// disk (not the normalised copy of the index). ok is false when nothing changes
+// disk (not the normalized copy of the index). ok is false when nothing changes
 // or the note must not be touched (with a warning on stderr).
 func planTracking(cmd *cobra.Command, root, id, title, rel, path string, issues []tracking.Issue) (p trackingPlan, ok bool, err error) {
 	skip := func(why string) (trackingPlan, bool, error) {

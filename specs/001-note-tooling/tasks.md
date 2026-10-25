@@ -73,7 +73,7 @@ TDD order: in each group the test task comes first and fails before its implemen
 ## Pages (separate PR)
 
 - [ ] T601 `docs/index.md` and a Hugo site configuration over `docs/`; local check by the owner (builds need approval).
-- [ ] T602 `.github/workflows/pages.yml` modelled on `sheetmill`: SHA-pinned actions, Hugo pinned with checksum, gofmt/vet/test before deploy, deploy on `main` only, least-privilege permissions, concurrency `pages`.
+- [ ] T602 `.github/workflows/pages.yml` modeled on `sheetmill`: SHA-pinned actions, Hugo pinned with checksum, gofmt/vet/test before deploy, deploy on `main` only, least-privilege permissions, concurrency `pages`.
 
 ## Slice 5 - optional (MCP deferred until slices 1-4 are in use)
 
