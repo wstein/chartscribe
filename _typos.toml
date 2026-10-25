@@ -1,0 +1,31 @@
+# typos spell checker: US English (locale en-us).
+[default]
+locale = "en-us"
+# GitHub API spellings that must stay as they are (conclusion strings, cancelled()).
+extend-ignore-re = [
+  "['\"`]cancelled['\"`]",
+  "['\"`]CANCELLED['\"`]",
+  "cancelled\\(\\)",
+]
+
+[files]
+extend-exclude = [
+  "LICENSE",
+  "COPYING*",
+  "**/licenses/**",
+  "*.patch",
+  "*.lock",
+  "go.sum",
+]
+
+[default.extend-words]
+# Tokens, escapes and test inputs that are not misspellings.
+contrats = "contrats"
+# British forms that typos with en-us does not flag on its own.
+catalogue = "catalog"
+catalogues = "catalogs"
+catalogued = "cataloged"
+cataloguing = "cataloging"
+cancelled = "canceled"
+cancelling = "canceling"
+misspelt = "misspelled"
