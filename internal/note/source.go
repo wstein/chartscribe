@@ -83,7 +83,7 @@ func HasLegacySource(body string) bool {
 	return false
 }
 
-// ParseSources returns every line `Source: ...` of body that has a recognised
+// ParseSources returns every line `Source: ...` of body that has a recognized
 // shape: the legacy `<text>, lines A-B`, or `<kind>: ...` with a kind prefix.
 // Other `Source:` lines are not sources (as before, they do not count).
 // The legacy form wins over a kind prefix.

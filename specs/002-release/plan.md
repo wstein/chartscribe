@@ -1,6 +1,6 @@
 # Plan: 002 release pipeline (v0.1.0)
 
-Status: proposed, modelled on SheetMill's feature 019. Nothing here has been run: the first
+Status: proposed, modeled on SheetMill's feature 019. Nothing here has been run: the first
 run is the owner's dry run.
 
 ## Decisions
@@ -39,7 +39,7 @@ run is the owner's dry run.
   golang.org/x/mod v0.42.0. That copy agreed with the real function on 194,575 paths (every rune
   below U+30000 in a name, plus edge cases), and `zip.CreateFromDir` succeeds on the tree.
 - `make` gains no build targets. The scripts are tested offline by `go test ./internal/releaseworkflow`
-  (part of `make check`): script behaviour on temporary git repos and a real host build, plus
+  (part of `make check`): script behavior on temporary git repos and a real host build, plus
   text rules on `release.yml` (pins, permissions, matrix equals the table below, archive count).
 - The smoke runs the shipped archive on every smoke platform (native and qemu): checksum and
   members, `version`, `--help`, `init` (plan, `--apply`, idempotent rerun), `new` (two notes and
@@ -74,7 +74,7 @@ All targets gate the release: one failed build or smoke stops publication.
 3. Optional: a tag ruleset for `v*` (no update, no deletion) after the release exists.
 4. Confirm the runner labels exist for this public repository (`macos-15-intel`,
    `windows-11-arm`, `ubuntu-24.04-arm`); a missing label fails that smoke job and blocks
-   publication, which is the intended fail-closed behaviour.
+   publication, which is the intended fail-closed behavior.
 
 ## Release v0.1.0 (owner only)
 

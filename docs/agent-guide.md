@@ -125,7 +125,7 @@ The full rule list is in the [validate rules](../specs/001-note-tooling/contract
 with one certain value, a note missing from the one list of the only map of its category, a README link that differs in case) and
 prints each exact edit; it writes nothing. Show the human the plan, then run `cscribe validate --fix --apply`. Only
 frontmatter and map or README link lines change, never a note body. Fixes that do not validate better are listed as
-refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`, ...) needs your judgement.
+refused. Everything else (`wikilink-unresolved`, `source-missing`, `title-char`, ...) needs your judgment.
 
 ## Creating and finding notes
 

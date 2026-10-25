@@ -154,7 +154,7 @@ func unquoteSingle(raw string) (string, bool) {
 	return strings.ReplaceAll(inner, "''", "'"), true
 }
 
-// parseFlowList parses a JSON array first (the reference behaviour); when that
+// parseFlowList parses a JSON array first (the reference behavior); when that
 // fails it accepts the YAML flow style Obsidian writes: plain and
 // single-quoted items.
 func parseFlowList(raw string) (Value, error) {

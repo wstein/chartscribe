@@ -82,7 +82,7 @@ and rewrites only the generated `## Tracking` section, which shows each issue wi
 
 ### US5 - Repair mechanical problems (P3, slice 5, optional)
 
-`validate --fix` repairs only safe mechanical findings (missing `id`, tag normalisation to the
+`validate --fix` repairs only safe mechanical findings (missing `id`, tag normalization to the
 collection style, field order), never prose, and prints a plan unless `--write` is given. Optional and may be dropped.
 
 ## Requirements
@@ -103,7 +103,7 @@ collection style, field order), never prose, and prints a plan unless `--write` 
 | FR-012 | No dependency on `zk` code or binary: a test fails when `go.mod` or an import names a `zk-org` module or `cscribe` starts a `zk` process. | all |
 | FR-013 | The CLI uses `github.com/spf13/cobra` at the version pinned by the sibling tools (v1.10.2 in `sourcesteward` and `sheetmill`) with their command-tree and exit-code boundary: `internal/cli.Run(ctx, version, args, stdout, stderr) int` owns a fresh command tree per call and is the only place that maps errors to exit codes. | 1 |
 | FR-014 | The root help carries the agent hint in the sibling pattern (below); the repository ships `llms.txt` and `docs/agent-guide.md`; a test asserts the hint in the root help and its absence from subcommand help (as the siblings, which add it to the root help only). | 1 |
-| FR-015 | A manual built from `docs/` is published at <https://wstein.github.io/chartscribe/> by a Pages workflow modelled on `sheetmill/.github/workflows/pages.yml`: actions pinned by SHA, Hugo pinned with checksum, deploy only after the checks pass, least-privilege permissions, concurrency group `pages`. A separate PR adds it. The Quartz view of chartroom is separate. | Pages |
+| FR-015 | A manual built from `docs/` is published at <https://wstein.github.io/chartscribe/> by a Pages workflow modeled on `sheetmill/.github/workflows/pages.yml`: actions pinned by SHA, Hugo pinned with checksum, deploy only after the checks pass, least-privilege permissions, concurrency group `pages`. A separate PR adds it. The Quartz view of chartroom is separate. | Pages |
 
 ## Agent hint and manual
 
@@ -123,7 +123,7 @@ GitHub Pages is enabled for the repository (build type workflow, <https://wstein
 ## Obsidian: what config files can and cannot do
 
 Checked online on 2026-10-21 (details and sources in [contracts/init-files.md](contracts/init-files.md)): the Obsidian
-settings and their behaviour are in the official help; the key names and file shapes of `.obsidian/*.json` are
+settings and their behavior are in the official help; the key names and file shapes of `.obsidian/*.json` are
 not documented officially and were confirmed from real vaults on GitHub, not from a running Obsidian.
 
 Config can set:

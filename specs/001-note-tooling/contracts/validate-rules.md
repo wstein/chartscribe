@@ -86,4 +86,4 @@ after the `Source:` line and ends at the next `## ` heading or at the end of the
 A note linked several times from one map counts once for `map-multiple` (the reference reports it as in more than one map).
 
 Single-quoted scalars, plain flow items and block list items without indentation are accepted (Obsidian and other YAML writers produce them; the reference reports `frontmatter` or `id-invalid` for them), and the `## Tracking` section is skipped. The parity test records each difference in `testdata/validate/diff`. Everything
-else is the reference behaviour, including its quirks, until a fixture says otherwise.
+else is the reference behavior, including its quirks, until a fixture says otherwise.
