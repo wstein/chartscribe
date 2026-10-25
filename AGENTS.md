@@ -14,6 +14,11 @@ repositories; a containing workspace may add its own rules.
 
 - Test-driven development: write a failing test first, make it pass, then refactor.
 - Conventional Commits, one logical change per commit.
+- Write all English text in US spelling: documentation, comments, commit messages, pull
+  request text and identifiers (color, behavior, license, canceled, catalog, labeled,
+  analyzed, organization). This applies to new and changed text. Do not convert existing
+  British spellings inside an unrelated change; a separate sweep does that. Keep exact
+  quotations, testdata, goldens and external names unchanged.
 - Every source and YAML file starts with `SPDX-License-Identifier: EUPL-1.2`.
 - `zk` is GPL-3.0. Start it as an external process only; never copy, vendor or
   link its code.
