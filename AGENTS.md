@@ -1,6 +1,7 @@
 # ChartScribe agent policy
 
-Agent collaboration: see the global rules (`~/.claude/CLAUDE.md`, skill `agent-workflow`); this file contains only repository-specific rules.
+Agent collaboration: see the global rules (`~/.claude/CLAUDE.md`, skill
+`agent-workflow`); this file contains only repository-specific rules.
 
 ChartScribe is a Go CLI (`cscribe`) for Zettelkasten note collections. Read
 [README.md](README.md) first. This repository is independent of sibling
@@ -41,3 +42,6 @@ repositories; a containing workspace may add its own rules.
 - Heavy: none. There is no end-to-end or long-running lane and no `ci-full` label.
   `release.yml` (build, smoke, publish) runs only on an owner-pushed tag or a manual
   dry run and is not a pull request check.
+- `pages.yml` (manual build and deploy): runs on push to `main` and manual dispatch only,
+  not on pull requests. Job `build` runs `make check` and a pinned Hugo build of `docs/`
+  (timeout 10 min); job `deploy` publishes to GitHub Pages from `main` only.
