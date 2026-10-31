@@ -1,5 +1,7 @@
 # ChartScribe agent policy
 
+Agent collaboration: see the global rules (`~/.claude/CLAUDE.md`, skill `agent-workflow`); this file contains only repository-specific rules.
+
 ChartScribe is a Go CLI (`cscribe`) for Zettelkasten note collections. Read
 [README.md](README.md) first. This repository is independent of sibling
 repositories; a containing workspace may add its own rules.
@@ -12,8 +14,6 @@ repositories; a containing workspace may add its own rules.
 
 ## Working rules
 
-- Test-driven development: write a failing test first, make it pass, then refactor.
-- Conventional Commits, one logical change per commit.
 - Write all English text in US spelling: documentation, comments, commit messages, pull
   request text and identifiers (color, behavior, license, canceled, catalog, labeled,
   analyzed, organization). This applies to new and changed text. Do not convert existing
@@ -26,13 +26,18 @@ repositories; a containing workspace may add its own rules.
 
 ## Authorization
 
-- Agents push only their own topic branches and open pull requests. They never
-  push the default branch, never merge, and never create tags or releases.
 - Builds of distribution artifacts, releases, publication and repository
   settings need the owner's explicit approval. Feature 002 (`specs/002-release`) adds a
   tag-triggered release workflow, `.github/workflows/release.yml`: an owner-pushed annotated tag
   `vMAJOR.MINOR.PATCH` on `main` is the publication approval for that tag only, and a manual run
   is a dry run that never publishes. Agents never push tags, start the workflow or create
   releases, and the environment, variable and ruleset settings stay with the owner.
-- Never write git identity configuration (`user.name`, `user.email`) into a
-  repository or worktree.
+
+## Light and heavy checks
+
+- Light, on every pull request and on `main`: workflow `ci`, job `test` runs
+  `make check` (gofmt check, `go vet ./...`, `go test ./...`; timeout 10 min); job
+  `check` is the required status check and aggregates `test`.
+- Heavy: none. There is no end-to-end or long-running lane and no `ci-full` label.
+  `release.yml` (build, smoke, publish) runs only on an owner-pushed tag or a manual
+  dry run and is not a pull request check.
