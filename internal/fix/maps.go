@@ -27,7 +27,7 @@ func categoryOf(tags []string) (string, bool) {
 
 // mapEdits plans one appended link line per map-unlisted note whose category has exactly one map.
 // texts holds the current note texts keyed by file name; positions refer to orig.
-func mapEdits(findings []validate.Finding, texts, orig map[string]string) []lineEdit {
+func mapEdits(dir string, findings []validate.Finding, texts, orig map[string]string) []lineEdit {
 	type noteInfo struct {
 		isMap bool
 		cat   string
@@ -71,7 +71,7 @@ func mapEdits(findings []validate.Finding, texts, orig map[string]string) []line
 		if len(maps) != 1 {
 			continue
 		}
-		file := "notes/" + maps[0]
+		file := dir + "/" + maps[0]
 		fenced, _ := note.CodeLines(orig[maps[0]])
 		at, bullet, ok := listEnd(strings.Split(orig[maps[0]], "\n"), fenced)
 		if !ok {

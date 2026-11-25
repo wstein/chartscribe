@@ -12,16 +12,29 @@ import (
 )
 
 // ErrNoCollection means no collection root was found.
-var ErrNoCollection = errors.New("no collection found (a directory with a notes/ folder)")
+var ErrNoCollection = errors.New("no collection found (a directory with a zettel/ or notes/ folder)")
+
+// NotesDir returns the relative name of the active note directory.
+// A new collection keeps the legacy notes/ default.
+func NotesDir(root string) string {
+	info, err := os.Stat(filepath.Join(root, "zettel"))
+	if err == nil && info.IsDir() {
+		return "zettel"
+	}
+	// Preserve access errors so they cannot silently switch writes to notes/.
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "zettel"
+	}
+	return "notes"
+}
 
 func hasNotes(dir string) bool {
-	info, err := os.Stat(filepath.Join(dir, "notes"))
+	info, err := os.Stat(filepath.Join(dir, NotesDir(dir)))
 	return err == nil && info.IsDir()
 }
 
 // FindRoot returns the collection root: explicit when given, else the nearest
-// directory from cwd upwards that has a notes/ folder. A root without a notes/
-// folder is ErrNoCollection.
+// directory from cwd upwards that has a zettel/ or notes/ folder.
 func FindRoot(explicit, cwd string) (string, error) {
 	if explicit != "" {
 		abs, err := filepath.Abs(explicit)
@@ -58,9 +71,10 @@ type File struct {
 // Title is the note title: the file name without .md.
 func (f File) Title() string { return strings.TrimSuffix(f.Name, ".md") }
 
-// ReadNotes reads notes/*.md of the collection (not recursive), sorted by name.
+// ReadNotes reads *.md from the active note directory of the collection (not recursive), sorted by name.
 func ReadNotes(root string) ([]File, error) {
-	entries, err := os.ReadDir(filepath.Join(root, "notes"))
+	dir := filepath.Join(root, NotesDir(root))
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +83,7 @@ func ReadNotes(root string) ([]File, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(root, "notes", e.Name()))
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err
 		}

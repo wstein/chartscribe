@@ -120,14 +120,14 @@ func sourcesSetup(cmd *cobra.Command, opts *globalOptions, args []string, all, r
 	return env, nil
 }
 
-// noteArg turns a path (relative to the working directory, to the collection root or to notes/) into the
-// file name of a note directly below notes/.
+// noteArg turns a path (relative to the working directory, to the collection root or to the active note directory) into the
+// file name of a note directly below the active note directory.
 func noteArg(root, cwd, arg string) (string, error) {
-	cands := []string{arg, filepath.Join(root, arg), filepath.Join(root, "notes", arg)}
+	notes := filepath.Join(root, collection.NotesDir(root))
+	cands := []string{arg, filepath.Join(root, arg), filepath.Join(notes, arg)}
 	if !filepath.IsAbs(arg) {
 		cands[0] = filepath.Join(cwd, arg)
 	}
-	notes := filepath.Join(root, "notes")
 	for _, c := range cands {
 		c = filepath.Clean(c)
 		if filepath.Dir(c) != notes || !strings.HasSuffix(c, ".md") {
@@ -137,7 +137,7 @@ func noteArg(root, cwd, arg string) (string, error) {
 			return filepath.Base(c), nil
 		}
 	}
-	return "", fmt.Errorf("%q is not a note of the collection (a .md file directly in notes/)", arg)
+	return "", fmt.Errorf("%q is not a note of the collection (a .md file directly in the active note directory)", arg)
 }
 
 // sourcesFailure maps the errors of the sources package to the exit status.

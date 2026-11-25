@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wstein/chartscribe/internal/collection"
 	"github.com/wstein/chartscribe/internal/note"
 	"github.com/wstein/chartscribe/internal/pin"
 	"github.com/wstein/chartscribe/internal/sourcecheck"
@@ -65,7 +66,7 @@ type Result struct {
 }
 
 // Check compares, for each file and measurement source of notes, the time of
-// the last commit of the cited file with that of the note file (root/notes/<name>).
+// the last commit of the cited file with that of the note file (the active note directory).
 // A source that does not resolve (validate reports it) or a file without a commit
 // is left out.
 func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Result {
@@ -126,7 +127,7 @@ func Check(root, srcRoot string, notes []validate.NoteSources, run Runner) Resul
 		if why, ok := dirty[n.Note]; ok {
 			skipMsg(n.Note + ": " + why)
 			skipUnpinned = true
-		} else if noteTime = commitTime(filepath.Join(realRoot, "notes", n.Note)); noteTime == 0 {
+		} else if noteTime = commitTime(filepath.Join(realRoot, collection.NotesDir(realRoot), n.Note)); noteTime == 0 {
 			skipMsg(n.Note + ": note has no history in this clone")
 			skipUnpinned = true
 		}
@@ -216,7 +217,7 @@ func day(unix int64) string { return time.Unix(unix, 0).UTC().Format("2006-01-02
 // `git status` call covers all notes; if it fails nothing is reported dirty.
 func dirtyNotes(run Runner, top, realRoot string) map[string]string {
 	out := map[string]string{}
-	rel, err := filepath.Rel(top, filepath.Join(realRoot, "notes"))
+	rel, err := filepath.Rel(top, filepath.Join(realRoot, collection.NotesDir(realRoot)))
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return out
 	}

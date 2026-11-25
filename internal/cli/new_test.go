@@ -163,3 +163,55 @@ func TestNewMessagesAndUnparsableNotes(t *testing.T) {
 		t.Errorf("id-like title: code %d, stderr %q", code, errOut)
 	}
 }
+
+func TestZettelTakesPrecedence(t *testing.T) {
+	fixedClock(t, "20261021093015")
+	for _, withLegacy := range []bool{false, true} {
+		name := "zettel-only"
+		if withLegacy {
+			name = "both-directories"
+		}
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.Mkdir(filepath.Join(root, "zettel"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if withLegacy {
+				legacy := filepath.Join(root, "notes")
+				if err := os.Mkdir(legacy, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(legacy, "Legacy.md"), []byte("---\nid: 20261021093014\naliases: []\ntags: []\n---\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			code, out, errOut := run("--root", root, "--json", "new", "Active")
+			if code != 0 || !strings.Contains(out, `"path": "zettel/Active.md"`) {
+				t.Fatalf("new: status %d, stdout %q, stderr %q", code, out, errOut)
+			}
+			if _, err := os.Stat(filepath.Join(root, "zettel", "Active.md")); err != nil {
+				t.Fatal(err)
+			}
+			code, out, errOut = run("--root", root, "--json", "list")
+			if code != 0 || !strings.Contains(out, `"path": "zettel/Active.md"`) || strings.Contains(out, "Legacy") {
+				t.Fatalf("list: status %d, stdout %q, stderr %q", code, out, errOut)
+			}
+			if code, _, errOut := run("--root", root, "links", "zettel/Active.md"); code != 0 {
+				t.Fatalf("links by path: status %d, stderr %q", code, errOut)
+			}
+			code, out, errOut = run("--root", root, "--json", "validate", "--rule", "id-invalid")
+			if code != 0 || !strings.Contains(out, `"notes": 1`) {
+				t.Fatalf("validate: status %d, stdout %q, stderr %q", code, out, errOut)
+			}
+			for _, dir := range []string{"zettel", "notes"} {
+				if dir == "notes" && !withLegacy {
+					continue
+				}
+				dst := filepath.Join(root, dir, "export.md")
+				if code, _, errOut := run("--root", root, "export", "Active", "--out", dst, "--force"); code != 2 {
+					t.Fatalf("export into %s: status %d, stderr %q", dir, code, errOut)
+				}
+			}
+		})
+	}
+}

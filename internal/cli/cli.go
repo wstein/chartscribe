@@ -109,7 +109,7 @@ func newRoot(version string, stdout, stderr io.Writer) *cobra.Command {
 	root.SetErr(stderr)
 	root.SetIn(strings.NewReader(""))
 	opts := &globalOptions{}
-	root.PersistentFlags().StringVar(&opts.root, "root", "", "Collection root (default: the nearest directory with a notes/ folder)")
+	root.PersistentFlags().StringVar(&opts.root, "root", "", "Collection root (default: the nearest directory with a zettel/ or notes/ folder)")
 	root.PersistentFlags().BoolVar(&opts.json, "json", false, "Write one JSON document to stdout")
 	root.CompletionOptions.DisableDefaultCmd = true
 	// Only the root help carries the agent hint; subcommand help stays plain.
