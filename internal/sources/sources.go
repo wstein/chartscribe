@@ -223,9 +223,10 @@ func build(root, srcRoot string, g pin.Git, only []string, rule string, decide f
 		names = append(names, n)
 	}
 	sort.Strings(names)
+	dir := collection.NotesDir(root)
 	for _, name := range names {
-		rel := "notes/" + name
-		if why := fix.UnsafeFile(filepath.Join(root, "notes", name)); why != "" {
+		rel := dir + "/" + name
+		if why := fix.UnsafeFile(filepath.Join(root, dir, name)); why != "" {
 			p.refuse(rel, why, byNote[name])
 			continue
 		}
@@ -235,7 +236,7 @@ func build(root, srcRoot string, g pin.Git, only []string, rule string, decide f
 	if err := p.verifyAll(root, byNote); err != nil {
 		return nil, err
 	}
-	p.finish(byNote)
+	p.finish(dir)
 	return p, nil
 }
 
@@ -284,7 +285,7 @@ func (p *Plan) verifyAll(root string, byNote map[string][]int) error {
 	for _, f := range files {
 		one := map[string]string{f: p.final[f]}
 		if err := p.verify(root, one, byNote); err != nil {
-			p.refuse(f, "the edit does not verify: "+err.Error(), byNote[strings.TrimPrefix(f, "notes/")])
+			p.refuse(f, "the edit does not verify: "+err.Error(), byNote[filepath.Base(f)])
 			delete(p.final, f)
 			delete(p.orig, f)
 		}
@@ -299,7 +300,7 @@ func (p *Plan) verifyAll(root string, byNote map[string][]int) error {
 // line is the planned one, and every other line of an edited note is as it was.
 func (p *Plan) verify(root string, final map[string]string, byNote map[string][]int) error {
 	for file, text := range final {
-		name := strings.TrimPrefix(file, "notes/")
+		name := filepath.Base(file)
 		old, now := strings.Split(p.orig[file], "\n"), strings.Split(text, "\n")
 		if len(old) != len(now) {
 			return fmt.Errorf("%s: the line count changed", file)
@@ -342,12 +343,12 @@ func verifyOverlay(root, srcRoot string, before []validate.Finding, overlay vali
 }
 
 // finish fills Edits from the rows that kept their edit.
-func (p *Plan) finish(byNote map[string][]int) {
+func (p *Plan) finish(dir string) {
 	for _, r := range p.Rows {
 		if r.NewLine == "" {
 			continue
 		}
-		p.Edits = append(p.Edits, fix.Edit{File: "notes/" + r.Note, Line: r.Line, Rule: p.Rule, Old: r.Raw, New: r.NewLine})
+		p.Edits = append(p.Edits, fix.Edit{File: dir + "/" + r.Note, Line: r.Line, Rule: p.Rule, Old: r.Raw, New: r.NewLine})
 	}
 	sort.SliceStable(p.Edits, func(i, j int) bool {
 		a, b := p.Edits[i], p.Edits[j]

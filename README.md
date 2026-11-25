@@ -2,6 +2,15 @@
 
 ChartScribe is a Go CLI (`cscribe`) for plain-text Zettelkasten collections.
 
+## Collection layout
+
+ChartScribe uses `zettel/` as the active note directory when it exists, even
+when it is empty. Otherwise it uses `notes/`. When both directories exist,
+collection commands read and modify notes only in `zettel/`. Notes under
+`notes/` remain on disk and can be moved separately. New collections still start
+with `notes/` unless you create `zettel/` first. Put maps that ChartScribe should
+index in the active directory alongside the notes.
+
 ## Note format
 
 - The filename is the note title.
@@ -40,9 +49,9 @@ cscribe [--root DIR] [--json] export NOTE [--format md] [--out FILE|-] [--depth 
 cscribe version
 ```
 
-`validate` checks `notes/*.md` and `README.md` of a collection against the
+`validate` checks Markdown files directly in the active note directory and `README.md` of a collection against the
 [rules](specs/001-note-tooling/contracts/validate-rules.md); it only reads files unless `--fix --apply` is given. The root is `--root`,
-else the nearest directory with a `notes/` folder. Findings go to stderr as `<note>: <message>`,
+else the nearest directory with a `zettel/` or `notes/` folder. Findings go to stderr as `<note>: <message>`,
 the summary `validate: <N> notes, <M> findings` to stdout; `--json` writes one document to stdout
 ([contract](specs/001-note-tooling/contracts/validate-output.md)). Exit status: 0 clean, 1 findings,
 2 usage error, 3 environment error. A note ends with one or more `Source:` lines: `<path>, lines A-B`, or typed
@@ -78,11 +87,11 @@ are refused. A second run plans nothing. Fixable rules and the rules that are de
 `exists (skipped)`, `differs (skipped)` or `overwrite`) and writes nothing. `--apply` writes the files that
 do not exist; an existing file stays untouched unless `--overwrite PATH` (relative to the root) or
 `--overwrite all` names it. `--tool` limits the set (default all three; `.cscribe.toml` is always written).
-A rerun plans nothing to write. The root is `--root`, else the nearest directory with a `notes/` folder,
+A rerun plans nothing to write. The root is `--root`, else the nearest directory with a `zettel/` or `notes/` folder,
 else the working directory. `init` writes files only and starts no tool; the file list is the
 [init contract](specs/001-note-tooling/contracts/init-files.md). The Quartz workflow is a proposal.
 
-`new TITLE` writes `notes/TITLE.md` (creating `notes/` when missing) with the id from the clock
+`new TITLE` writes `TITLE.md` in the active note directory (creating `notes/` for a new collection) with the id from the clock
 (`YYYYMMDDHHMMSS`, `-001`, `-002`... when a note already has it), empty `aliases`, the `--tag` tags, a `## Links`
 heading and an empty `Source:` line, and prints the path. It exits 2 for an existing file or title, an empty
 title or a forbidden character (`\ / : * ? " < > | # [ ] ^`, control characters, a leading dot). The note passes `validate`
@@ -105,7 +114,7 @@ documents are generated from them. The title is the start note; the notes its wi
 and `Source:` lines. A wikilink to a note in the document becomes an anchor link, any other one its text; the
 `Source:` lines are collected, without duplicates, into a final `## Sources` section. The output has no
 timestamps, so a rerun gives the same bytes. It goes to stdout or `--out FILE`, which is never replaced without
-`--force` and never inside `notes/` or at a symbolic link; nothing else is written. Wikilinks in code and in the `## Links` section do not pull notes in. `--title TEXT` replaces the document title. Only Markdown is generated (`--format md`): render it with Hugo, Quartz or
+`--force` and never inside `zettel/`, inside `notes/`, or at a symbolic link; nothing else is written. Wikilinks in code and in the `## Links` section do not pull notes in. `--title TEXT` replaces the document title. Only Markdown is generated (`--format md`): render it with Hugo, Quartz or
 pandoc. `--json` (with `--out`) lists the included notes and the unresolved links; see
 [export contract](specs/001-note-tooling/contracts/export.md).
 

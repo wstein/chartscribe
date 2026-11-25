@@ -59,10 +59,10 @@ type Options struct {
 
 // Overlay replaces the text of files read from disk, so a candidate result can
 // be validated without writing it. Keys are slash paths relative to the root:
-// "notes/<name>.md" and "README.md". Line endings of a value are taken as given.
+// "<active directory>/<name>.md" and "README.md". Line endings of a value are taken as given.
 type Overlay map[string]string
 
-// Run validates the collection at root (a directory with a notes/ folder).
+// Run validates the collection at root.
 // An error means the collection could not be read; rule violations are findings.
 func Run(root string) (Result, error) { return RunOverlay(root, nil) }
 
@@ -84,8 +84,9 @@ func RunWith(root string, overlay Overlay, opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	dir := collection.NotesDir(root)
 	for i, f := range files {
-		if text, ok := overlay["notes/"+f.Name]; ok {
+		if text, ok := overlay[dir+"/"+f.Name]; ok {
 			files[i].Text = text
 		}
 	}

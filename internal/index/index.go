@@ -62,12 +62,13 @@ type TagCount struct {
 	Count int    `json:"count"`
 }
 
-// Load reads notes/*.md of the collection at root.
+// Load reads *.md from the active note directory of the collection at root.
 func Load(root string) (*Index, error) {
 	files, err := collection.ReadNotes(root)
 	if err != nil {
 		return nil, err
 	}
+	dir := collection.NotesDir(root)
 	x := &Index{Root: root, byName: map[string]int{}}
 	for _, f := range files {
 		fm, body, err := note.Parse(f.Text)
@@ -78,7 +79,7 @@ func Load(root string) (*Index, error) {
 			}
 			continue
 		}
-		n := Note{Title: f.Title(), Name: f.Name, Path: "notes/" + f.Name, Tags: []string{}, Aliases: []string{}, body: note.StripTracking(body)}
+		n := Note{Title: f.Title(), Name: f.Name, Path: dir + "/" + f.Name, Tags: []string{}, Aliases: []string{}, body: note.StripTracking(body)}
 		if v, ok := fm.Get("id"); ok && !v.IsList {
 			n.ID = v.Text
 		}
@@ -111,15 +112,14 @@ func (x *Index) ByName(name string) (Note, bool) {
 }
 
 // Find returns the note an argument names: a title or alias (any case), a file
-// name with or without notes/, or an id.
+// name, a collection-relative path, or an id.
 func (x *Index) Find(arg string) (Note, bool) {
 	arg = strings.TrimSpace(arg)
 	if i, ok := x.byName[strings.ToLower(arg)]; ok {
 		return x.Notes[i], true
 	}
-	rel := strings.TrimPrefix(arg, "notes/")
 	for _, n := range x.Notes {
-		if n.Name == rel || n.ID == arg {
+		if n.Name == arg || n.Path == arg || n.ID == arg {
 			return n, true
 		}
 	}

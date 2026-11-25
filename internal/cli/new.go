@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/spf13/cobra"
+	"github.com/wstein/chartscribe/internal/collection"
 	"github.com/wstein/chartscribe/internal/index"
 	"github.com/wstein/chartscribe/internal/initcmd"
 	"github.com/wstein/chartscribe/internal/note"
@@ -76,11 +77,11 @@ func newCommand(opts *globalOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new TITLE",
 		Short: "Create a note from the template",
-		Long: `Create notes/TITLE.md with a fresh id (14 digits from the clock, -NNN when a note
+		Long: `Create TITLE.md in the active note directory with a fresh id (14 digits from the clock, -NNN when a note
 already has it), empty aliases, the --tag tags, a Links heading and an empty Source line.
 It refuses an existing file or title and a title with a forbidden character.
 The note passes validate once you have filled the tags and the Source line and listed it in a map.
-The root is --root, else the nearest directory with a notes/ folder, else the working
+The root is --root, else the nearest directory with a zettel/ or notes/ folder, else the working
 directory; notes/ is created when missing. It prints the path of the new file.
 Exit status: 0 done, 2 usage error (including a refused title), 3 environment error.`,
 		Args: cobra.ExactArgs(1),
@@ -98,7 +99,8 @@ Exit status: 0 done, 2 usage error (including a refused title), 3 environment er
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
-			notes := filepath.Join(root, "notes")
+			dir := collection.NotesDir(root)
+			notes := filepath.Join(root, dir)
 			if err := os.MkdirAll(notes, 0o755); err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
 			}
@@ -113,7 +115,7 @@ Exit status: 0 done, 2 usage error (including a refused title), 3 environment er
 			}
 			for _, e := range entries {
 				if strings.EqualFold(e.Name(), title+".md") {
-					return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("notes/%s already exists", e.Name()))
+					return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("%s/%s already exists", dir, e.Name()))
 				}
 			}
 			if n, taken := x.ByName(title); taken {
@@ -123,7 +125,7 @@ Exit status: 0 done, 2 usage error (including a refused title), 3 environment er
 			path := filepath.Join(notes, title+".md")
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 			if errors.Is(err, os.ErrExist) {
-				return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("notes/%s.md already exists", title))
+				return failure(cmd, opts, exitUsage, "usage", fmt.Errorf("%s/%s.md already exists", dir, title))
 			}
 			if err != nil {
 				return failure(cmd, opts, exitEnv, "io", err)
@@ -139,7 +141,7 @@ Exit status: 0 done, 2 usage error (including a refused title), 3 environment er
 				if tags == nil {
 					tags = []string{}
 				}
-				doc := newDocument{Version: 1, Command: "new", OK: true, Root: root, ID: id, Title: title, Path: "notes/" + title + ".md", Tags: tags}
+				doc := newDocument{Version: 1, Command: "new", OK: true, Root: root, ID: id, Title: title, Path: dir + "/" + title + ".md", Tags: tags}
 				if err := writeJSON(cmd.OutOrStdout(), doc); err != nil {
 					return runtimeFailure{err}
 				}

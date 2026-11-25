@@ -45,7 +45,7 @@ render it with Hugo, Quartz or pandoc.
 make a note a member.
 
 The document goes to stdout, or with --out FILE to that file, which is never overwritten
-without --force. --out is refused (exit 2) inside the collection's notes/ tree and at a
+without --force. --out is refused (exit 2) inside the collection's note directories and at a
 symbolic link, even with --force; a missing directory or a directory as FILE is exit 3.
 Nothing else is written. Unresolved links and unclosed code fences are warned on stderr. With --json
 (which needs --out FILE) one document lists the included notes and the unresolved links.
@@ -126,7 +126,7 @@ func outFailure(cmd *cobra.Command, opts *globalOptions, err error) error {
 }
 
 // checkOut resolves --out to the path to write and refuses what export must
-// never touch: anything inside the collection's notes/ tree (after cleaning and
+// never touch: anything inside the collection's note directories (after cleaning and
 // resolving symlinks of the parent directory) and a symlink as the target, with
 // or without --force. A missing parent directory or a directory as the target
 // is an environment error.
@@ -140,14 +140,26 @@ func checkOut(root, out string) (string, error) {
 		return "", err
 	}
 	target := filepath.Join(parent, filepath.Base(abs))
-	notes, err := filepath.EvalSymlinks(filepath.Join(root, "notes"))
-	if err != nil {
-		return "", err
-	}
-	if hit, err := touchesNotes(notes, parent, target); err != nil {
-		return "", err
-	} else if hit {
-		return "", usageError{fmt.Errorf("--out %s is inside the notes of the collection; export never writes there", out)}
+	for _, name := range []string{"zettel", "notes"} {
+		notes, err := filepath.EvalSymlinks(filepath.Join(root, name))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		info, err := os.Stat(notes)
+		if err != nil {
+			return "", err
+		}
+		if !info.IsDir() {
+			continue
+		}
+		if hit, err := touchesNotes(notes, parent, target); err != nil {
+			return "", err
+		} else if hit {
+			return "", usageError{fmt.Errorf("--out %s is inside the notes of the collection; export never writes there", out)}
+		}
 	}
 	info, err := os.Lstat(target)
 	switch {

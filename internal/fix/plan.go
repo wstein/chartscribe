@@ -71,10 +71,11 @@ func Build(root string, only []string) (*Plan, error) {
 	}
 	p := &Plan{Notes: base.Notes, Before: base.Findings, orig: map[string]string{}, final: map[string]string{}, kept: map[string][]lineEdit{}}
 	states := map[string]*fileState{}
+	dir := collection.NotesDir(root)
 	for _, f := range files {
-		rel := "notes/" + f.Name
+		rel := dir + "/" + f.Name
 		st := &fileState{text: f.Text}
-		st.problem = unsafeFile(filepath.Join(root, "notes", f.Name))
+		st.problem = unsafeFile(filepath.Join(root, dir, f.Name))
 		states[rel] = st
 		p.orig[rel] = f.Text
 	}
@@ -102,7 +103,7 @@ func Build(root string, only []string) (*Plan, error) {
 	}
 	rules := noteRules(base.Findings)
 	for _, f := range files {
-		rel := "notes/" + f.Name
+		rel := dir + "/" + f.Name
 		if edits := noteEdits(rel, f.Name, f.Text, vocab, usedIDs, rules[f.Name]); len(edits) > 0 {
 			if err := run.try(rel, edits); err != nil {
 				return nil, err
@@ -113,10 +114,10 @@ func Build(root string, only []string) (*Plan, error) {
 	// Phase 2: map links and README links, decided on the result of phase 1.
 	texts := map[string]string{}
 	for _, f := range files {
-		texts[f.Name] = run.text("notes/" + f.Name)
+		texts[f.Name] = run.text(dir + "/" + f.Name)
 	}
 	byFile := map[string][]lineEdit{}
-	for _, e := range mapEdits(run.cur, texts, texts0(files)) {
+	for _, e := range mapEdits(dir, run.cur, texts, texts0(files)) {
 		byFile[e.file] = append(byFile[e.file], e)
 	}
 	names := make([]string, 0, len(byFile))
