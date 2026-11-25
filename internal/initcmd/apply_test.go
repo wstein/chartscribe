@@ -43,7 +43,7 @@ func snapshot(t *testing.T, root string) map[string]string {
 
 func TestPlanWritesNothing(t *testing.T) {
 	root := t.TempDir()
-	files := Files(nil, "demo", "")
+	files := Files(nil, "demo", "", "notes")
 	es, err := Plan(root, files, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestPlanWritesNothing(t *testing.T) {
 
 func TestApplyThenRerunPlansNothing(t *testing.T) {
 	root := t.TempDir()
-	files := Files(nil, "demo", "")
+	files := Files(nil, "demo", "", "notes")
 	es, _ := Plan(root, files, nil)
 	if err := Apply(root, files, es); err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestApplyThenRerunPlansNothing(t *testing.T) {
 
 func TestExistingFileIsKeptWithoutOverwrite(t *testing.T) {
 	root := t.TempDir()
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	mine := filepath.Join(root, ".zk", "config.toml")
 	if err := os.MkdirAll(filepath.Dir(mine), 0o755); err != nil {
 		t.Fatal(err)
@@ -122,7 +122,7 @@ func TestExistingFileIsKeptWithoutOverwrite(t *testing.T) {
 
 func TestOverwriteReplacesOnlyTheNamedFile(t *testing.T) {
 	root := t.TempDir()
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	for _, p := range []string{".zk/config.toml", ".zk/.gitignore"} {
 		full := filepath.Join(root, filepath.FromSlash(p))
 		_ = os.MkdirAll(filepath.Dir(full), 0o755)
@@ -150,7 +150,7 @@ func TestOverwriteReplacesOnlyTheNamedFile(t *testing.T) {
 
 func TestOverwriteAll(t *testing.T) {
 	root := t.TempDir()
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	es, _ := Plan(root, files, nil)
 	_ = Apply(root, files, es)
 	_ = os.WriteFile(filepath.Join(root, ".zk", ".gitignore"), []byte("mine\n"), 0o644)
@@ -165,7 +165,7 @@ func TestOverwriteAll(t *testing.T) {
 }
 
 func TestOverwriteMustNameAFileOfTheSet(t *testing.T) {
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	for _, p := range []string{"notes/Idea.md", ".obsidian/app.json", "../x", "/etc/passwd", ""} {
 		_, err := Plan(t.TempDir(), files, []string{p})
 		if !errors.Is(err, ErrUnknownOverwrite) {
@@ -178,7 +178,7 @@ func TestRefusesSymlinkAndDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlinks")
 	}
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	t.Run("target symlink", func(t *testing.T) {
 		root, outside := t.TempDir(), filepath.Join(t.TempDir(), "victim")
 		_ = os.WriteFile(outside, []byte("v"), 0o644)
@@ -230,7 +230,7 @@ func TestApplyReportsWriteFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Chmod(root, 0o700)
-	files := Files(nil, "demo", "")
+	files := Files(nil, "demo", "", "notes")
 	es, err := Plan(root, files, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -242,7 +242,7 @@ func TestApplyReportsWriteFailure(t *testing.T) {
 
 func TestApplyNeverTruncatesAFileThatAppearedAfterThePlan(t *testing.T) {
 	root := t.TempDir()
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	es, _ := Plan(root, files, nil)
 	mine := filepath.Join(root, ".cscribe.toml")
 	_ = os.WriteFile(mine, []byte("mine\n"), 0o644)
@@ -259,7 +259,7 @@ func TestOverwriteKeepsTheFileMode(t *testing.T) {
 		t.Skip("modes")
 	}
 	root := t.TempDir()
-	files := Files([]Tool{ZK}, "demo", "")
+	files := Files([]Tool{ZK}, "demo", "", "notes")
 	full := filepath.Join(root, ".cscribe.toml")
 	_ = os.WriteFile(full, []byte("mine\n"), 0o600)
 	_ = os.Chmod(full, 0o600)

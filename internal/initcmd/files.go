@@ -52,7 +52,8 @@ func WorkflowVersion(version string) string {
 // fixed order and without duplicates. .cscribe.toml comes first and is
 // written under every tool. title is the collection name for the Quartz files;
 // version is the cscribe version the Quartz workflow installs (see WorkflowVersion).
-func Files(tools []Tool, title, version string) []File {
+// notesDir is the active directory for new Obsidian notes.
+func Files(tools []Tool, title, version, notesDir string) []File {
 	if len(tools) == 0 {
 		tools = AllTools
 	}
@@ -70,7 +71,7 @@ func Files(tools []Tool, title, version string) []File {
 		case Obsidian:
 			files = append(files,
 				File{"templates/Note.md", noteTemplate("{{date:YYYYMMDDHHmmss}}")},
-				File{".obsidian/app.json", obsidianApp},
+				File{".obsidian/app.json", strings.Replace(obsidianApp, "@NOTES_DIR@", jsonString(notesDir), 1)},
 				File{".obsidian/core-plugins.json", corePlugins()},
 				File{".obsidian/templates.json", "{\n  \"folder\": \"templates\"\n}\n"},
 				File{".obsidian/types.json", "{\n  \"types\": {\n    \"id\": \"text\",\n    \"aliases\": \"aliases\",\n    \"tags\": \"tags\"\n  }\n}\n"},
@@ -165,7 +166,7 @@ hashtags = false
 
 const obsidianApp = `{
   "newFileLocation": "folder",
-  "newFileFolderPath": "notes",
+  "newFileFolderPath": @NOTES_DIR@,
   "useMarkdownLinks": false,
   "newLinkFormat": "shortest",
   "alwaysUpdateLinks": true
@@ -247,7 +248,9 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf quartz/content && mkdir quartz/content
-          cp -r notes quartz/content/notes
+          note_dir=notes
+          if [ -d zettel ]; then note_dir=zettel; fi
+          cp -r "$note_dir" quartz/content/notes
           cp .quartz/index.md quartz/content/index.md
           python3 - <<'PY'
 @PATCH@          PY
