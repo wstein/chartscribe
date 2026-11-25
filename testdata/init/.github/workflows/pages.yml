@@ -46,7 +46,9 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf quartz/content && mkdir quartz/content
-          cp -r notes quartz/content/notes
+          note_dir=notes
+          if [ -d zettel ]; then note_dir=zettel; fi
+          cp -r "$note_dir" quartz/content/notes
           cp .quartz/index.md quartz/content/index.md
           python3 - <<'PY'
           import json, re, sys

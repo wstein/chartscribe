@@ -12,7 +12,7 @@ import (
 
 func workflow(t *testing.T, version string) string {
 	t.Helper()
-	for _, f := range Files([]Tool{Quartz}, "demo", version) {
+	for _, f := range Files([]Tool{Quartz}, "demo", version, "notes") {
 		if f.Path == ".github/workflows/pages.yml" {
 			return f.Content
 		}

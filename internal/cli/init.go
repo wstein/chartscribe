@@ -69,7 +69,7 @@ unless --overwrite names it (a path relative to the root, or "all"). --tool
 selects zk, obsidian or quartz (repeatable or comma-separated; default all);
 .cscribe.toml is written under every tool. init writes files only: it starts no
 tool and installs no plugin. The root is --root, else the nearest directory with
-a notes/ folder, else the working directory.
+a zettel/ or notes/ folder, else the working directory.
 Exit status: 0 done, 2 usage error, 3 environment error.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -89,7 +89,7 @@ Exit status: 0 done, 2 usage error, 3 environment error.`,
 				}
 				return failure(cmd, opts, exitEnv, kind, err)
 			}
-			files := initcmd.Files(sel, filepath.Base(root), buildVersion())
+			files := initcmd.Files(sel, filepath.Base(root), buildVersion(), collection.NotesDir(root))
 			entries, err := initcmd.Plan(root, files, overwrite)
 			if errors.Is(err, initcmd.ErrUnknownOverwrite) {
 				return failure(cmd, opts, exitUsage, "usage", err)
